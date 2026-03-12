@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -44,16 +45,16 @@
                             <span class="custom-radio">Học sinh</span>
                         </label>
                         <label class="radio-label">
+                            <input type="radio" name="role" value="teacher" onchange="toggleRegisterBtn()">
+                            <span class="custom-radio">Giáo viên</span>
+                        </label>
+                        <label class="radio-label">
                             <input type="radio" name="role" value="admin" onchange="toggleRegisterBtn()">
                             <span class="custom-radio">Quản trị</span>
                         </label>
                     </div>
 
-                    <div class="input-group">
-                        <i class="fa-solid fa-school"></i>
-                        <input type="text" id="unit" placeholder="Bắt buộc nhập đơn vị vd: THCS AN NHƠN" required
-                            style="padding-left: 40px;">
-                    </div>
+
 
                     <div class="input-group">
                         <i class="fa-regular fa-user"></i>
@@ -105,10 +106,8 @@
                 </div>
 
                 <!-- Footer Link -->
-                <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
-                    <button class="btn btn-outline"
-                        style="width: auto; padding: 10px 20px; font-size: 13px; border-color: #ddd; color: var(--text-muted);"
-                        onclick="openModal('about-modal')">
+                <div class="guide-footer">
+                    <button class="btn-guide" onclick="openModal('about-modal')">
                         <i class="fa-solid fa-circle-info"></i> Giới thiệu & Hướng dẫn
                     </button>
                 </div>
@@ -157,7 +156,14 @@
                         <strong id="admin-name">Admin</strong>
                     </div>
                 </div>
-                <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="view-toggle" class="btn-view-toggle" onclick="toggleViewMode()"
+                        title="Chuyển chế độ xem">
+                        <i class="fa-solid fa-desktop"></i>
+                    </button>
+                    <button class="btn-logout" onclick="logout()"><i
+                            class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
             </header>
 
             <div class="dashboard-content">
@@ -183,10 +189,16 @@
                         <span>TIN TỨC & KIẾN THỨC</span>
                         <i class="fa-solid fa-chevron-right arrow"></i>
                     </div>
-                    <div class="admin-menu-item" onclick="loadAdminTab('users')">
+                    <div id="admin-menu-users" class="admin-menu-item" onclick="loadAdminTab('users')">
                         <div class="icon-wrap" style="background: var(--c-green);"><i
                                 class="fa-solid fa-users-gear"></i></div>
                         <span>QUẢN LÝ NGƯỜI DÙNG</span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
+                    <div class="admin-menu-item" onclick="loadAdminTab('bulk-users')">
+                        <div class="icon-wrap" style="background: var(--c-purple);"><i
+                                class="fa-solid fa-file-import"></i></div>
+                        <span>THÊM TÀI KHOẢN ĐĂNG KÝ</span>
                         <i class="fa-solid fa-chevron-right arrow"></i>
                     </div>
                     <div class="admin-menu-item" onclick="loadAdminTab('stats')"
@@ -198,10 +210,8 @@
                     </div>
 
                     <!-- Footer Link -->
-                    <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
-                        <button class="btn btn-outline"
-                            style="width: auto; padding: 10px 20px; font-size: 13px; border-color: #ddd; color: var(--text-muted);"
-                            onclick="openModal('about-modal')">
+                    <div class="guide-footer">
+                        <button class="btn-guide" onclick="openModal('about-modal')">
                             <i class="fa-solid fa-circle-info"></i> Giới thiệu & Hướng dẫn
                         </button>
                     </div>

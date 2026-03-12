@@ -7,7 +7,7 @@ function doPost(e) {
     let sheet1 = ss.getSheetByName("Trang tính 1") || ss.getSheetByName("Trang tính1") || ss.getSheetByName("Sheet1");
     if (!sheet1) {
       sheet1 = ss.insertSheet("Trang tính 1");
-      sheet1.appendRow(["Tài khoản", "Mật khẩu", "Đối tượng", "Thời gian", "SĐT", "Đơn vị"]);
+      sheet1.appendRow(["Tên", "Lớp", "Tài khoản", "Mật khẩu", "Đối tượng", "Thời gian", "SĐT"]);
     }
     
     let sheet2 = ss.getSheetByName("Trang tính 2") || ss.getSheetByName("Trang tính2") || ss.getSheetByName("Sheet2");
@@ -32,11 +32,12 @@ function doPost(e) {
       
       const data1 = sheet1.getDataRange().getValues();
       for (let i = 1; i < data1.length; i++) {
-        if (String(data1[i][0]).toLowerCase() === username) {
+        if (String(data1[i][2]).toLowerCase() === username.toLowerCase()) {
           return jsonRes({ success: false, message: "Tài khoản đã tồn tại!" });
         }
       }
-      sheet1.appendRow([username, password, role, new Date().toISOString(), "", unit]);
+      // Index 0:Tên, 1:Lớp, 2:TK, 3:MK, 4:Role, 5:Time, 6:SĐT
+      sheet1.appendRow(["", "", username, password, role, new Date().toISOString(), ""]);
       return jsonRes({ success: true, message: "Đăng ký thành công!" });
     }
     
@@ -51,19 +52,17 @@ function doPost(e) {
       const loginRole = String(role || "").toLowerCase().trim();
 
       for (let i = 1; i < data1.length; i++) {
-        const sheetUser = String(data1[i][0] || "").toLowerCase().trim();
-        const sheetPass = String(data1[i][1] || "").trim(); // Lấy mật khẩu gốc từ sheet
-        const sheetRole = String(data1[i][2] || "").toLowerCase().trim();
-        const sheetUnit = String(data1[i][5] || "").toLowerCase().trim();
+        const sheetUser = String(data1[i][2] || "").toLowerCase().trim();
+        const sheetPass = String(data1[i][3] || "").trim(); // Lấy mật khẩu gốc từ sheet
+        const sheetRole = String(data1[i][4] || "").toLowerCase().trim();
         
         if (sheetUser === loginUser && 
             sheetPass === loginPass && 
-            sheetRole === loginRole && 
-            sheetUnit === loginUnit) {
-          return jsonRes({ success: true, message: "Đăng nhập thành công!", unit: data1[i][5] || "" });
+            sheetRole === loginRole) {
+          return jsonRes({ success: true, message: "Đăng nhập thành công!" });
         }
       }
-      return jsonRes({ success: false, message: "Sai Tài khoản, Mật khẩu hoặc Đơn vị. Vui lòng kiểm tra lại!" });
+      return jsonRes({ success: false, message: "Sai Tài khoản hoặc Mật khẩu. Vui lòng kiểm tra lại!" });
     }
 
     if (action === "submitReport") {
@@ -136,10 +135,6 @@ function doPost(e) {
 
       for (let i = 1; i < data2.length; i++) {
         const row = data2[i];
-        const rowUnit = String(row[7] || "").toLowerCase().trim();
-        
-        // Chỉ lấy báo cáo thuộc đơn vị của Admin
-        if (rowUnit !== targetUnit) continue;
 
         const id = i + 1;
         const type = row[1];
@@ -230,11 +225,13 @@ function doPost(e) {
       const data1 = sheet1.getDataRange().getValues();
       const admins = [];
       for (let i = 1; i < data1.length; i++) {
-        if (String(data1[i][2]) === "admin") {
+        const role = String(data1[i][4]).toLowerCase();
+        if (role === "admin" || role === "teacher") {
+          // Tên ở cột A (0), TK ở cột C (2)
+          const displayName = data1[i][0] || data1[i][2];
           admins.push({
-            name: data1[i][0],
-            phone: data1[i][4] || "Chưa có SĐT",
-            unit: data1[i][5] || ""
+            name: displayName + " (" + (role === "admin" ? "Quản trị" : "Giáo viên") + ")",
+            phone: data1[i][6] || "Chưa có SĐT"
           });
         }
       }
@@ -242,17 +239,17 @@ function doPost(e) {
     }
 
     if (action === "getUsers") {
-      const { unit } = data;
-      const targetUnit = String(unit || "").toLowerCase().trim();
       const data1 = sheet1.getDataRange().getValues();
       const users = [];
       for (let i = 1; i < data1.length; i++) {
-        const userUnit = String(data1[i][5] || "").toLowerCase().trim();
-        if (String(data1[i][2]) === "student" && userUnit === targetUnit) {
+        const role = String(data1[i][4]);
+        if (role === "student" || role === "teacher") {
           users.push({
-            username: data1[i][0],
-            time: data1[i][3],
-            unit: data1[i][5] || ""
+            name: data1[i][0] || "---",
+            className: data1[i][1] || "---",
+            username: data1[i][2],
+            role: role,
+            time: data1[i][5]
           });
         }
       }
@@ -260,10 +257,10 @@ function doPost(e) {
     }
 
     if (action === "deleteUser") {
-      const { username, unit } = data;
+      const { username } = data;
       const data1 = sheet1.getDataRange().getValues();
       for (let i = 1; i < data1.length; i++) {
-        if (String(data1[i][0]) === String(username) && String(data1[i][5] || "").toLowerCase() === String(unit).toLowerCase()) {
+        if (String(data1[i][2]) === String(username)) {
           sheet1.deleteRow(i + 1);
           return jsonRes({ success: true, message: "Đã xóa tài khoản học sinh!" });
         }
@@ -271,12 +268,38 @@ function doPost(e) {
       return jsonRes({ success: false, message: "Mục không tồn tại hoặc lỗi phân quyền." });
     }
 
+    if (action === "bulkRegister") {
+      const { users } = data;
+      const data1 = sheet1.getDataRange().getValues();
+      const existingUsers = new Set(data1.map(row => String(row[2]).toLowerCase().trim()));
+      
+      let count = 0;
+      users.forEach(u => {
+        const username = String(u.username || "").toLowerCase().trim();
+        if (username && !existingUsers.has(username)) {
+          // A:Tên, B:Lớp, C:TK, D:MK, E:Đối tượng, F:Thời gian, G:SĐT
+          sheet1.appendRow([
+            u.name || "", 
+            u.className || "", 
+            username, 
+            u.password || "1234", 
+            u.role || "student", 
+            new Date().toISOString(), 
+            u.phone || ""
+          ]);
+          existingUsers.add(username);
+          count++;
+        }
+      });
+      return jsonRes({ success: true, message: `Đã nhập thành công ${count} tài khoản mới!` });
+    }
+
     if (action === "changePassword") {
-      const { username, newPassword, unit } = data;
+      const { username, newPassword } = data;
       const data1 = sheet1.getDataRange().getValues();
       for (let i = 1; i < data1.length; i++) {
-        if (String(data1[i][0]) === String(username) && String(data1[i][5] || "").toLowerCase() === String(unit).toLowerCase()) {
-          sheet1.getRange(i + 1, 2).setValue(newPassword);
+        if (String(data1[i][2]) === String(username)) {
+          sheet1.getRange(i + 1, 4).setValue(newPassword);
           return jsonRes({ success: true, message: "Đã đổi mật khẩu thành công!" });
         }
       }

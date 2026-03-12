@@ -9,7 +9,8 @@ let currentFileMimeType = null;
 let currentFileName = null;
 let studentReportsCache = []; // Cache for chat history
 let currentAdminTab = 'reports'; // Global for admin navigation
-let currentUnit = null; // Store user unit (school)
+let isWebMode = false; // Toggle between Mobile and Web layout
+let adminUsersCache = []; // Store fetched users for filtering/sorting
 
 // --- UI Utilities ---
 function showToast(message, type = 'success') {
@@ -98,35 +99,39 @@ async function apiCall(data) {
 async function login() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
-    const unit = document.getElementById('unit').value.trim();
     const role = document.querySelector('input[name="role"]:checked').value;
 
-    if (!username || !password || !unit) {
-        showToast("Vui lòng nhập đầy đủ Đơn vị, Tài khoản và Mật khẩu!", "error");
-        return;
-    }
-
-    if (!unit.toUpperCase().includes("THCS")) {
-        showToast("Đơn vị phải bao gồm chữ 'THCS'. Ví dụ: THCS AN NHƠN", "error");
+    if (!username || !password) {
+        showToast("Vui lòng nhập đầy đủ Tài khoản và Mật khẩu!", "error");
         return;
     }
 
     showLoader();
-    const res = await apiCall({ action: 'login', username, password, role, unit });
+    const res = await apiCall({ action: 'login', username, password, role });
     hideLoader();
 
     if (res && res.success) {
         showToast("Đăng nhập thành công!", "success");
         currentUser = username;
         currentRole = role;
-        currentUnit = res.unit || unit; // Luôn ưu tiên unit trả về từ server
 
         if (role === 'student') {
             document.getElementById('student-name').textContent = username;
             switchScreen('student-dashboard');
             loadStudentData();
         } else {
-            document.getElementById('admin-name').textContent = username;
+            // Hiển thị vai trò (Giáo viên / Quản trị)
+            const roleName = role === 'admin' ? 'Quản trị' : 'Giáo viên';
+            document.getElementById('admin-name').textContent = roleName + ": " + username;
+
+            // Phân quyền: Chỉ admin mới thấy mục Quản lý người dùng
+            const userMenu = document.getElementById('admin-menu-users');
+            if (role === 'admin') {
+                userMenu.classList.remove('hidden');
+            } else {
+                userMenu.classList.add('hidden');
+            }
+
             switchScreen('admin-dashboard');
             backToAdminMenu();
         }
@@ -139,25 +144,19 @@ async function register() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
     const role = document.querySelector('input[name="role"]:checked').value;
-    const unit = document.getElementById('unit').value.trim();
 
     if (role !== 'student') {
         showToast("Chỉ học sinh mới có thể đăng ký!", "error");
         return;
     }
 
-    if (!username || !password || !unit) {
-        showToast("Vui lòng nhập đầy đủ thông tin (bao gồm Đơn vị)!", "error");
-        return;
-    }
-
-    if (!unit.toUpperCase().includes("THCS")) {
-        showToast("Đơn vị phải bao gồm chữ 'THCS'. Ví dụ: THCS AN NHƠN", "error");
+    if (!username || !password) {
+        showToast("Vui lòng nhập đầy đủ thông tin!", "error");
         return;
     }
 
     showLoader();
-    const res = await apiCall({ action: 'register', username, password, role, unit });
+    const res = await apiCall({ action: 'register', username, password, role });
     hideLoader();
 
     if (res && res.success) {
@@ -170,7 +169,25 @@ async function register() {
 function logout() {
     currentUser = null;
     currentRole = 'student';
+    // Reset view mode if needed
+    if (isWebMode) toggleViewMode();
     switchScreen('login-screen');
+}
+
+function toggleViewMode() {
+    isWebMode = !isWebMode;
+    const appContainer = document.querySelector('.app-container');
+    const toggleBtn = document.getElementById('view-toggle');
+
+    if (isWebMode) {
+        appContainer.classList.add('web-mode');
+        toggleBtn.innerHTML = '<i class="fa-solid fa-mobile-screen-button"></i>';
+        showToast("Đã chuyển sang giao diện máy tính", "success");
+    } else {
+        appContainer.classList.remove('web-mode');
+        toggleBtn.innerHTML = '<i class="fa-solid fa-desktop"></i>';
+        showToast("Đã chuyển sang giao diện điện thoại", "success");
+    }
 }
 
 // --- Student Dashboard ---
@@ -264,8 +281,7 @@ async function submitReport(e) {
         username: currentUser,
         type: 'Báo cáo ẩn danh',
         content,
-        details,
-        unit: currentUnit
+        details
     };
 
     if (currentFileBase64) {
@@ -521,7 +537,7 @@ async function loadAdminTab(tab, btn = null) {
     if (tab === 'reports' || tab === 'sos' || tab === 'chat') {
         // Nếu chưa có cache hoặc muốn tải mới, gọi API
         if (!adminReportsCache) {
-            const res = await apiCall({ action: 'getAllReports', unit: currentUnit });
+            const res = await apiCall({ action: 'getAllReports' });
             if (res && res.success) adminReportsCache = res;
         }
 
@@ -595,38 +611,50 @@ async function loadAdminTab(tab, btn = null) {
     // Xử lý Tab Quản lý người dùng
     else if (tab === 'users') {
         area.innerHTML = '<div style="text-align:center; padding:30px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách học sinh...</div>';
-        const res = await apiCall({ action: 'getUsers', unit: currentUnit });
+        const res = await apiCall({ action: 'getUsers' });
         if (res && res.success) {
-            let html = '<h3 class="section-title">Danh sách học sinh đăng ký</h3>';
-            if (res.users.length === 0) {
-                html += '<div class="empty-state">Chưa có học sinh nào đăng ký.</div>';
-            } else {
-                res.users.forEach(u => {
-                    const dateStr = new Date(u.time).toLocaleDateString('vi-VN');
-                    html += `
-                        <div class="report-item" style="display:flex; justify-content:space-between; align-items:center;">
-                            <div onclick="openAdminChatReply(null, '${u.username}')" style="cursor:pointer; flex: 1;">
-                                <strong style="color:var(--primary);">${u.username}</strong><br>
-                                <small>${u.unit || 'Chưa rõ đơn vị'}</small>
-                            </div>
-                            <div style="text-align:right; display:flex; gap:5px; flex-direction:column;">
-                                <div style="display:flex; gap:5px;">
-                                    <button class="btn btn-outline" title="Đổi MK" style="padding:5px 10px; font-size:11px; margin:0; width:auto; border-color:var(--c-yellow); color:var(--c-yellow);" onclick="openChangePasswordModal('${u.username}')">
-                                        <i class="fa-solid fa-key"></i> MK
-                                    </button>
-                                    <button class="btn btn-outline" title="Xóa HS" style="padding:5px 10px; font-size:11px; margin:0; width:auto; border-color:var(--c-red); color:var(--c-red);" onclick="deleteUserAdmin('${u.username}')">
-                                        <i class="fa-solid fa-user-xmark"></i> Xóa
-                                    </button>
-                                </div>
-                                <button class="btn btn-outline" style="padding:5px 10px; font-size:11px; margin:0; width:auto; border-color:var(--c-blue); color:var(--c-blue);" onclick="openAdminChatReply(null, '${u.username}')">
-                                    <i class="fa-solid fa-comments"></i> Chat
-                                </button>
-                            </div>
+            adminUsersCache = res.users;
+
+            // Lấy danh sách lớp duy nhất để tạo filter
+            const classes = [...new Set(adminUsersCache.map(u => u.className).filter(c => c && c !== "---"))].sort();
+            let classOptions = '<option value="all">Tất cả các lớp</option>';
+            classes.forEach(c => {
+                classOptions += `<option value="${c}">${c}</option>`;
+            });
+
+            let html = `
+                <div id="user-mgmt-header" style="grid-column: 1 / -1; display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+                    <h3 class="section-title" style="margin:0;"><i class="fa-solid fa-users-gear"></i> QUẢN LÝ NGƯỜI DÙNG</h3>
+                    <div class="user-management-controls section-card" style="margin:0; display:flex; gap:15px; align-items:center; background:#f0f9ff; border:1px solid #bae6fd; padding: 10px 20px; width: auto; border-radius: 12px; flex-wrap: wrap;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">ĐỐI TƯỢNG:</label>
+                            <select id="user-role-filter" onchange="renderAdminUsers()" style="padding:6px 10px; border-radius:8px; border:1px solid #ddd; outline:none; font-size:12px; min-width:110px; background: white;">
+                                <option value="all">Tất cả</option>
+                                <option value="student">Học sinh</option>
+                                <option value="teacher">Giáo viên</option>
+                            </select>
                         </div>
-                    `;
-                });
-            }
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">LỚP:</label>
+                            <select id="user-class-filter" onchange="renderAdminUsers()" style="padding:6px 10px; border-radius:8px; border:1px solid #ddd; outline:none; font-size:12px; min-width:120px; background: white;">
+                                ${classOptions}
+                            </select>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">SẮP XẾP:</label>
+                            <button class="btn btn-outline" onclick="sortAdminUsers()" style="margin:0; padding:6px 12px; width:auto; background:white; border-radius:8px; font-size:12px; font-weight: 600; display: flex; align-items: center; gap: 5px;">
+                                <i class="fa-solid fa-sort-alpha-down"></i> Tên A-Z
+                            </button>
+                        </div>
+                        <button class="btn btn-primary" onclick="exportUsersToExcel()" style="margin:0; padding:8px 15px; width:auto; font-size:12px; border-radius:8px; display: flex; align-items: center; gap: 5px; background: var(--c-green); box-shadow: none;">
+                            <i class="fa-solid fa-file-excel"></i> Xuất Excel
+                        </button>
+                    </div>
+                </div>
+                <div id="admin-users-list-container" style="grid-column: 1 / -1; width: 100%;"></div>
+            `;
             area.innerHTML = html;
+            renderAdminUsers();
         } else {
             area.innerHTML = '<div class="empty-state">Lỗi khi tải danh sách người dùng.</div>';
         }
@@ -677,6 +705,10 @@ async function loadAdminTab(tab, btn = null) {
             </div>
             ${newsHtml}
         `;
+    }
+    // Xử lý Tab Thêm tài khoản hàng loạt
+    else if (tab === 'bulk-users') {
+        renderBulkUserManagement(area);
     }
 }
 
@@ -813,7 +845,7 @@ async function deleteCategoryAdmin(type) {
 function deleteUserAdmin(username) {
     customConfirm(`Xác nhận XÓA VĨNH VIỄN tài khoản của học sinh: ${username}?`, async () => {
         showLoader();
-        const res = await apiCall({ action: 'deleteUser', username: username, unit: currentUnit });
+        const res = await apiCall({ action: 'deleteUser', username: username });
         if (res && res.success) {
             showToast("Đã xóa tài khoản học sinh!", "success");
             loadAdminTab('users');
@@ -833,15 +865,15 @@ function openChangePasswordModal(username) {
 
 async function submitChangePassword() {
     const username = document.getElementById('change-pass-username').value;
-    const newPassword = document.getElementById('admin-new-pass').value.trim();
+    const newPass = document.getElementById('admin-new-pass').value.trim();
 
-    if (!newPassword) {
+    if (!newPass) {
         showToast("Vui lòng nhập mật khẩu mới!", "error");
         return;
     }
 
     showLoader();
-    const res = await apiCall({ action: 'changePassword', username: username, newPassword: newPassword, unit: currentUnit });
+    const res = await apiCall({ action: 'changePassword', username: username, newPassword: newPass });
     if (res && res.success) {
         showToast("Đã cập nhật mật khẩu mới!", "success");
         closeModal('admin-user-pass-modal');
@@ -986,4 +1018,246 @@ function searchNews() {
         (n.type && n.type.toLowerCase().includes(term))
     );
     renderNews(filtered);
+}
+// --- User Management Logic ---
+function renderAdminUsers() {
+    const listContainer = document.getElementById('admin-users-list-container');
+    const classFilter = document.getElementById('user-class-filter').value;
+    const roleFilter = document.getElementById('user-role-filter').value;
+
+    let filteredUsers = [...adminUsersCache];
+
+    // Lọc theo đối tượng
+    if (roleFilter !== 'all') {
+        filteredUsers = filteredUsers.filter(u => u.role === roleFilter);
+    }
+
+    // Lọc theo lớp
+    if (classFilter !== 'all') {
+        filteredUsers = filteredUsers.filter(u => u.className === classFilter);
+    }
+
+    if (filteredUsers.length === 0) {
+        listContainer.innerHTML = '<div class="empty-state">Không tìm thấy người dùng phù hợp.</div>';
+        return;
+    }
+
+    let html = `
+        <div style="overflow-x:auto; width: 100%;">
+            <table style="width:100%; border-collapse: collapse; background:white; border-radius:15px; overflow:hidden; table-layout: auto;">
+                <thead>
+                    <tr style="background:#f1f5f9; text-align:left;">
+                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">HỌ TÊN</th>
+                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">LỚP</th>
+                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">ĐỐI TƯỢNG</th>
+                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">TÀI KHOẢN</th>
+                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted); text-align:center;">THAO TÁC</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    filteredUsers.forEach(u => {
+        let roleTag = u.role === 'teacher' ?
+            `<span style="padding:4px 10px; background:#fef2f2; color:#991b1b; border-radius:8px; font-size:11px; font-weight:700;">GIÁO VIÊN</span>` :
+            `<span style="padding:4px 10px; background:#f0fdf4; color:#166534; border-radius:8px; font-size:11px; font-weight:700;">HỌC SINH</span>`;
+
+        html += `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:12px 15px; font-weight:600; color:var(--text-main); font-size:14px;">${u.name}</td>
+                <td style="padding:12px 15px;"><span style="padding:4px 10px; background:#e0f2fe; color:#0369a1; border-radius:8px; font-size:12px; font-weight:700;">${u.className}</span></td>
+                <td style="padding:12px 15px;">${roleTag}</td>
+                <td style="padding:12px 15px; color:var(--text-muted); font-size:13px;">${u.username}</td>
+                <td style="padding:12px 15px; text-align:center;">
+                    <div style="display:flex; gap:8px; justify-content:center;">
+                        <button class="btn-action-mini color-yellow" onclick="openChangePasswordModal('${u.username}')" title="Đổi mật khẩu">
+                            <i class="fa-solid fa-key"></i>
+                        </button>
+                        <button class="btn-action-mini color-blue" onclick="openAdminChatReply(null, '${u.username}')" title="Nhắn tin">
+                            <i class="fa-solid fa-comments"></i>
+                        </button>
+                        <button class="btn-action-mini color-red" onclick="deleteUserAdmin('${u.username}')" title="Xóa học sinh">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `</tbody></table></div>`;
+    listContainer.innerHTML = html;
+}
+
+function sortAdminUsers() {
+    adminUsersCache.sort((a, b) => {
+        const nameA = (a.name || "").toLowerCase();
+        const nameB = (b.name || "").toLowerCase();
+        return nameA.localeCompare(nameB, 'vi');
+    });
+    showToast("Đã sắp xếp Theo tên A-Z", "success");
+    renderAdminUsers();
+}
+
+function exportUsersToExcel() {
+    const classFilter = document.getElementById('user-class-filter').value;
+    const roleFilter = document.getElementById('user-role-filter').value;
+
+    let list = [...adminUsersCache];
+    if (roleFilter !== 'all') list = list.filter(u => u.role === roleFilter);
+    if (classFilter !== 'all') list = list.filter(u => u.className === classFilter);
+
+    if (list.length === 0) {
+        showToast("Không có dữ liệu để xuất!", "error");
+        return;
+    }
+
+    // Chuẩn bị dữ liệu cho SheetJS
+    const rows = [
+        ["Họ tên", "Lớp", "Tài khoản", "Đối tượng", "Thời gian đăng ký"]
+    ];
+
+    list.forEach(u => {
+        let roleName = u.role === 'teacher' ? 'Giáo viên' : 'Học sinh';
+        let timeStr = u.time ? new Date(u.time).toLocaleString('vi-VN') : "---";
+        rows.push([u.name || "", u.className || "", u.username, roleName, timeStr]);
+    });
+
+    // Tạo workbook và worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách người dùng");
+
+    // Định dạng cột (độ rộng)
+    const wscols = [
+        { wch: 25 }, // Tên
+        { wch: 10 }, // Lớp
+        { wch: 20 }, // Tài khoản
+        { wch: 15 }, // Đối tượng
+        { wch: 25 }, // Thời gian
+    ];
+    worksheet['!cols'] = wscols;
+
+    // Xuất file .xlsx
+    const fileName = `Danh_sach_nguoi_dung_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+    showToast("Đã xuất danh sách (XLSX) thành công!", "success");
+}
+
+// --- Bulk User Management Functions ---
+function renderBulkUserManagement(container) {
+    container.innerHTML = `
+        <div class="bulk-user-mgmt">
+            <h3 class="section-title"><i class="fa-solid fa-file-import"></i> THÊM TÀI KHOẢN ĐĂNG KÝ HÀNG LOẠT</h3>
+            
+            <div class="section-card" style="background: #f8fafc; border: 1px dashed var(--primary); text-align: center; padding: 40px 20px;">
+                <div style="font-size: 50px; color: var(--primary); margin-bottom: 20px;">
+                    <i class="fa-solid fa-file-excel"></i>
+                </div>
+                <h4>Sử dụng File Excel để thêm nhanh</h4>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px; max-width: 400px; margin-left: auto; margin-right: auto;">
+                    Tải file mẫu bên dưới, điền thông tin học sinh/giáo viên và tải lên lại hệ thống để tạo tài khoản tự động.
+                </p>
+                
+                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-outline" onclick="downloadUserTemplate()" style="width: auto; padding: 12px 25px; border-radius: 12px; display: flex; align-items: center; gap: 10px; background: white;">
+                        <i class="fa-solid fa-download"></i> Tải File Mẫu
+                    </button>
+                    
+                    <button class="btn btn-primary" onclick="document.getElementById('bulk-user-file').click()" style="width: auto; padding: 12px 25px; border-radius: 12px; display: flex; align-items: center; gap: 10px; margin: 0; box-shadow: none;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Tải Lên Danh Sách
+                    </button>
+                    <input type="file" id="bulk-user-file" accept=".xlsx, .xls" style="display: none;" onchange="uploadUserList(event)">
+                </div>
+                
+                <div id="upload-status" style="margin-top: 20px; font-weight: 600; font-size: 14px;"></div>
+            </div>
+
+            <div class="section-card" style="margin-top: 20px;">
+                <h4 style="margin-bottom: 15px; font-size: 15px;"><i class="fa-solid fa-circle-info"></i> Hướng dẫn & Lưu ý:</h4>
+                <ul style="font-size: 13px; color: var(--text-muted); line-height: 1.8; padding-left: 20px;">
+                    <li>Giữ nguyên tiêu đề các cột trong file mẫu.</li>
+                    <li><strong>Đối tượng:</strong> Nhập <code style="color:var(--primary)">student</code> cho Học sinh hoặc <code style="color:var(--c-red)">teacher</code> cho Giáo viên.</li>
+                    <li><strong>Tài khoản:</strong> Không trùng với các tài khoản đã có trên hệ thống.</li>
+                    <li>Hệ thống sẽ tự động bỏ qua các tài khoản đã tồn tại.</li>
+                    <li>Cột SĐT trong file mẫu (Cột F) sẽ được tự động đồng bộ vào hệ thống.</li>
+                </ul>
+            </div>
+        </div>
+    `;
+}
+
+function downloadUserTemplate() {
+    const rows = [
+        ["Tên", "Lớp", "Tài khoản", "Mật khẩu", "Đối tượng", "SĐT"],
+        ["Nguyễn Văn An", "9a1", "nvan91", "1234", "student", ""],
+        ["Nguyễn Phi Hùng", "", "nphung", "1234", "teacher", "0935470502"]
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+
+    // Format cols
+    worksheet['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }];
+
+    XLSX.writeFile(workbook, "Mau_Dang_Ky_Tai_Khoan.xlsx");
+    showToast("Đã tải xuống file mẫu!", "success");
+}
+
+async function uploadUserList(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusDiv = document.getElementById('upload-status');
+    statusDiv.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý file...';
+    statusDiv.style.color = 'var(--primary)';
+
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+            if (jsonData.length === 0) {
+                statusDiv.innerHTML = 'File không có dữ liệu!';
+                statusDiv.style.color = 'var(--c-red)';
+                return;
+            }
+
+            // Map data to expected format for API
+            // Expecting columns: Tên, Lớp, Tài khoản, Mật khẩu, Đối tượng, SĐT
+            // XLSX helper will use header names as keys
+            const users = jsonData.map(row => ({
+                name: row["Tên"] || "",
+                className: row["Lớp"] || "",
+                username: row["Tài khoản"] || "",
+                password: row["Mật khẩu"] || "1234",
+                role: (row["Đối tượng"] || "student").toLowerCase().trim(),
+                phone: row["SĐT"] || ""
+            })).filter(u => u.username);
+
+            showLoader();
+            const res = await apiCall({ action: 'bulkRegister', users });
+            hideLoader();
+
+            if (res && res.success) {
+                statusDiv.innerHTML = `<i class="fa-solid fa-check-circle"></i> ${res.message}`;
+                statusDiv.style.color = 'var(--c-green)';
+                showToast(res.message, "success");
+            } else {
+                statusDiv.innerHTML = 'Lỗi khi gửi dữ liệu lên máy chủ.';
+                statusDiv.style.color = 'var(--c-red)';
+            }
+        } catch (err) {
+            console.error(err);
+            statusDiv.innerHTML = 'Lỗi định dạng file Excel!';
+            statusDiv.style.color = 'var(--c-red)';
+        }
+        event.target.value = ''; // Reset input
+    };
+    reader.readAsArrayBuffer(file);
 }
