@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>An Toàn Học Đường</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- Toast Notification (Top) -->
+        <div id="toast" class="toast"></div>
+
+        <!-- Bản quyền -->
+        <div
+            style="position: absolute; bottom: 15px; width: 100%; text-align: center; color: var(--c-blue); font-size: 13px; font-weight: 600; z-index: 5;">
+            Made by Nguyễn Phi Hùng-Zalo 0938750424
+        </div>
+
+        <!-- LOADER -->
+        <div id="loader" class="loader-overlay hidden">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- LOGIN SCREEN -->
+        <div id="login-screen" class="screen active login-bg">
+            <div class="login-wrapper">
+                <div class="logo-container">
+                    <div class="logo-circle">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h1>An Toàn Học Đường</h1>
+                    <p>Môi trường học tập an toàn, thân thiện</p>
+                </div>
+
+                <div class="login-box">
+                    <div class="role-selector">
+                        <label class="radio-label">
+                            <input type="radio" name="role" value="student" checked onchange="toggleRegisterBtn()">
+                            <span class="custom-radio">Học sinh</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="role" value="admin" onchange="toggleRegisterBtn()">
+                            <span class="custom-radio">Quản trị</span>
+                        </label>
+                    </div>
+
+                    <div class="input-group">
+                        <i class="fa-regular fa-user"></i>
+                        <input type="text" id="username" placeholder="Tên đăng nhập" required>
+                    </div>
+
+                    <div class="input-group">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="password" placeholder="Mật khẩu" required>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="login()">Đăng nhập</button>
+                    <button class="btn btn-outline" id="btn-register" onclick="register()">Đăng ký tài khoản</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STUDENT DASHBOARD -->
+        <div id="student-dashboard" class="screen bg-gray">
+            <header class="app-header">
+                <div class="user-info">
+                    <div class="avatar"><i class="fa-solid fa-user"></i></div>
+                    <div class="user-details">
+                        <span class="greeting">Xin chào,</span>
+                        <strong id="student-name">Học sinh</strong>
+                    </div>
+                </div>
+                <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </header>
+
+            <div class="dashboard-content">
+                <div class="menu-grid">
+                    <button class="menu-btn bg-red" onclick="openModal('report-modal')">
+                        <i class="fa-solid fa-bullhorn"></i>
+                        <span>BÁO CÁO ẨN DANH</span>
+                    </button>
+                    <button class="menu-btn bg-blue" onclick="openModal('news-modal'); loadNewsForStudent()">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>TIN TỨC & KIẾN THỨC</span>
+                    </button>
+                    <button class="menu-btn bg-yellow" onclick="openSOSModal()">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>SOS KHẨN CẤP</span>
+                    </button>
+                    <button class="menu-btn bg-purple" onclick="openChatModal()">
+                        <i class="fa-solid fa-comments"></i>
+                        <span>HỎI ĐÁP & TÂM SỰ</span>
+                    </button>
+                </div>
+
+                <section class="section-card">
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                        <h3 class="section-title" style="margin:0;">Báo cáo gần đây (Chỉ bạn thấy)</h3>
+                        <button onclick="deleteAllStudentReports()"
+                            style="background:none; border:none; color:var(--c-red); font-size:12px; font-weight:600; cursor:pointer;">
+                            <i class="fa-solid fa-trash-can"></i> Xóa hết
+                        </button>
+                    </div>
+                    <div class="list-container" id="student-reports-container">
+                        <div class="empty-state">Chưa có báo cáo nào</div>
+                    </div>
+                </section>
+
+                <section class="stats-section">
+                    <div class="stat-card">
+                        <i class="fa-solid fa-file-waveform"></i>
+                        <h4 id="stat-total-sent">0</h4>
+                        <p>Tổng đã gửi</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <h4 id="stat-sent">0</h4>
+                        <p>Đã gửi</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-check-circle" style="color:var(--c-green)"></i>
+                        <h4 id="stat-processed">0</h4>
+                        <p>Đã xử lý</p>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ADMIN DASHBOARD -->
+        <div id="admin-dashboard" class="screen bg-gray">
+            <header class="app-header bg-admin">
+                <div class="user-info">
+                    <div class="avatar"><i class="fa-solid fa-user-tie"></i></div>
+                    <div class="user-details">
+                        <span class="greeting">Phiên quản trị,</span>
+                        <strong id="admin-name">Admin</strong>
+                    </div>
+                </div>
+                <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </header>
+
+            <div class="dashboard-content">
+                <!-- Admin Main Menu -->
+                <div id="admin-main-menu" class="admin-menu">
+                    <div class="admin-menu-item" onclick="loadAdminTab('reports')">
+                        <div class="icon-wrap bg-red"><i class="fa-solid fa-bullhorn"></i></div>
+                        <span>BÁO CÁO ẨN DANH</span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
+                    <div class="admin-menu-item" onclick="loadAdminTab('sos')">
+                        <div class="icon-wrap bg-yellow"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <span>SOS KHẨN CẤP</span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
+                    <div class="admin-menu-item" onclick="loadAdminTab('chat')">
+                        <div class="icon-wrap bg-purple"><i class="fa-solid fa-comments"></i></div>
+                        <span>HỎI ĐÁP & TÂM SỰ</span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
+                    <div class="admin-menu-item" onclick="loadAdminTab('news')">
+                        <div class="icon-wrap bg-blue"><i class="fa-solid fa-book-open"></i></div>
+                        <span>TIN TỨC & KIẾN THỨC</span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
+                    <div class="admin-menu-item" onclick="loadAdminTab('stats')"
+                        style="border-top: 2px solid #eee; margin-top: 10px; padding-top: 15px;">
+                        <div class="icon-wrap" style="background: var(--text-main);"><i
+                                class="fa-solid fa-chart-pie"></i></div>
+                        <span style="font-weight: 700;">THỐNG KÊ CHI TIẾT</span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
+                </div>
+
+                <!-- Admin Tab Detail View -->
+                <div id="admin-detail-view" class="hidden" style="animation: fadeIn 0.3s ease;">
+                    <button class="btn-back" onclick="backToAdminMenu()"
+                        style="margin-bottom: 15px; background: none; border: none; color: var(--primary); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-arrow-left"></i> Quay lại menu
+                    </button>
+
+                    <div id="admin-content-area" class="admin-content">
+                        <!-- Content load dynamic -->
+                    </div>
+
+                    <!-- Thống kê Admin chi tiết -->
+                    <div id="admin-stats-container" class="admin-stats-summary"
+                        style="margin-top: 10px; padding: 15px; background: white; border-radius: 15px; display:none; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <h3
+                            style="font-size: 15px; margin-bottom: 15px; color: var(--text-main); border-bottom: 1px solid #eee; padding-bottom: 8px;">
+                            Tổng quan báo cáo</h3>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                            <div class="mini-stat-box"
+                                style="background: #f8fafc; padding: 12px; border-radius: 12px; border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-size: 13px; font-weight: 600;">Tổng báo cáo</div>
+                                <div style="font-size: 13px; font-weight: 700; color: var(--primary);"
+                                    id="adm-stat-total">Nhận: 0 | Xử lý: 0</div>
+                            </div>
+                            <div class="mini-stat-box"
+                                style="background: #f8fafc; padding: 12px; border-radius: 12px; border-left: 4px solid var(--c-yellow); display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-size: 13px; font-weight: 600;">SOS Khẩn cấp</div>
+                                <div style="font-size: 13px; font-weight: 700; color: var(--c-yellow);"
+                                    id="adm-stat-sos">Nhận: 0 | Xử lý: 0</div>
+                            </div>
+                            <div class="mini-stat-box"
+                                style="background: #f8fafc; padding: 12px; border-radius: 12px; border-left: 4px solid var(--c-blue); display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-size: 13px; font-weight: 600;">Hỏi đáp & Tâm sự</div>
+                                <div style="font-size: 13px; font-weight: 700; color: var(--c-blue);"
+                                    id="adm-stat-chat">Nhận: 0 | Xử lý: 0</div>
+                            </div>
+                            <div class="mini-stat-box"
+                                style="background: #f8fafc; padding: 12px; border-radius: 12px; border-left: 4px solid var(--c-green); display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-size: 13px; font-weight: 600;">Báo cáo ẩn danh</div>
+                                <div style="font-size: 13px; font-weight: 700; color: var(--c-green);"
+                                    id="adm-stat-anon">Nhận: 0 | Xử lý: 0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODALS -->
+        <div id="report-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Gửi Báo Cáo Ẩn Danh</h2>
+                    <button class="close-btn" onclick="closeModal('report-modal')"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="report-form" onsubmit="submitReport(event)">
+                        <div class="form-group">
+                            <label>Loại hành vi (Vd: Bạo lực, Bắt nạt, Tống tiền...)</label>
+                            <input type="text" id="report-type" required placeholder="Nhập loại hành vi">
+                        </div>
+                        <div class="form-group">
+                            <label>Mô tả chi tiết</label>
+                            <textarea id="report-details" required placeholder="Viết chi tiết sự việc..."></textarea>
+                        </div>
+                        <div class="form-group file-upload-group">
+                            <label>Hình ảnh/Video bằng chứng (Chọn từ thiết bị)</label>
+                            <div class="file-upload-wrapper">
+                                <button type="button" class="btn-upload"
+                                    onclick="document.getElementById('report-file').click()">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Chọn File đính kèm
+                                </button>
+                                <input type="file" id="report-file" accept="image/*,video/*" style="display: none;"
+                                    onchange="previewFile()">
+                                <div id="file-preview-container" class="file-preview-container hidden">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Gửi báo cáo an
+                            toàn</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tin tức kiến thức Modal -->
+        <div id="news-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Tin Tức & Kiến Thức</h2>
+                    <button class="close-btn" onclick="closeModal('news-modal')"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="search-box">
+                        <input type="text" id="search-news" placeholder="Tìm kiếm thông tin...">
+                        <button onclick="searchNews()"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+                    <div id="student-news-container" style="margin-top: 15px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thêm Tin Tức Modal (Admin) -->
+        <div id="admin-news-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Thêm Bài Viết Mới</h2>
+                    <button class="close-btn" onclick="closeModal('admin-news-modal')"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-news-form" onsubmit="submitNews(event)">
+                        <div class="form-group">
+                            <label>Tiêu đề bài viết</label>
+                            <input type="text" id="news-title" required placeholder="Nhập tiêu đề">
+                        </div>
+                        <div class="form-group">
+                            <label>Loại nội dung</label>
+                            <select id="news-type" class="form-control" onchange="toggleNewsInput()"
+                                style="width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; background: rgba(0,0,0,0.2); color: black; margin-bottom: 20px;">
+                                <option value="Text">Văn bản</option>
+                                <option value="Link">Đường dẫn (Link / Website)</option>
+                                <option value="PDF">Tài liệu (PDF)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="news-content-group">
+                            <label>Nội dung</label>
+                            <textarea id="news-content" required
+                                placeholder="Nhập nội dung bài viết hoặc dán link..."></textarea>
+                        </div>
+                        <div class="form-group file-upload-group hidden" id="news-file-group">
+                            <label>Tài liệu đính kèm (PDF)</label>
+                            <div class="file-upload-wrapper">
+                                <button type="button" class="btn-upload"
+                                    onclick="document.getElementById('news-file').click()">
+                                    <i class="fa-solid fa-file-pdf"></i> Chọn file PDF
+                                </button>
+                                <input type="file" id="news-file" accept=".pdf" style="display: none;"
+                                    onchange="previewNewsFile()">
+                                <div id="news-file-preview-container" class="file-preview-container hidden"
+                                    style="margin-top:10px;">
+                                    <span id="news-file-name" style="font-size: 12px; color: var(--text-muted);"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Đăng bài viết</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hỏi đáp tâm sự Modal -->
+        <div id="chat-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Hỏi Đáp & Tâm Sự</h2>
+                    <button class="close-btn" onclick="closeModal('chat-modal')"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body chat-body" id="chat-box">
+                    <div class="chat-message admin-msg">
+                        <div class="msg-bubble">Chào bạn, bạn muốn tâm sự hay hỏi đáp gì không? Thông tin của bạn được
+                            bảo mật.</div>
+                    </div>
+                </div>
+                <div class="chat-footer">
+                    <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
+                    <button onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOS Modal -->
+        <div id="sos-modal" class="modal"
+            style="background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+            <div class="modal-content"
+                style="background: white; width: 95%; max-width: 450px; border-radius: 20px; height: auto; align-self: center; margin: auto;">
+                <div class="modal-header">
+                    <h2 style="color: var(--c-red);"><i class="fa-solid fa-triangle-exclamation"></i> SOS KHẨN CẤP</h2>
+                    <button class="close-btn" onclick="closeModal('sos-modal')"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div id="admin-list-sos"
+                        style="margin-bottom: 20px; max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 12px; padding: 5px;">
+                        <!-- Load admins here -->
+                    </div>
+                    <div class="form-group">
+                        <label>Gửi nội dung khẩn cấp</label>
+                        <textarea id="sos-message" placeholder="Ví dụ: Em đang gặp nguy hiểm tại..."
+                            style="height: 80px;"></textarea>
+                    </div>
+                    <button class="btn"
+                        style="background: var(--c-red); color: white; margin-top: 10px; border-radius: 12px; font-weight: 600;"
+                        onclick="sendSOSMessage()">
+                        <i class="fa-solid fa-paper-plane"></i> GỬI TÍN HIỆU & Hỗ Trợ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Reply Modal -->
+        <div id="admin-reply-modal" class="modal"
+            style="background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+            <div class="modal-content"
+                style="background: white; width: 90%; max-width: 400px; border-radius: 20px; height: auto; align-self: center; margin: auto;">
+                <div class="modal-header">
+                    <h2>Phản Hồi Học Sinh</h2>
+                    <button class="close-btn" onclick="closeModal('admin-reply-modal')"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">Tin nhắn của học sinh:
+                    </p>
+                    <div id="admin-reply-original"
+                        style="background: rgba(0,0,0,0.05); padding: 12px; border-radius: 8px; font-style: italic; margin-bottom: 15px; font-size: 14px; word-break: break-word;">
+                    </div>
+                    <form id="admin-reply-form" onsubmit="submitAdminReply(event)">
+                        <input type="hidden" id="admin-reply-id">
+                        <div class="form-group">
+                            <label>Nhập nội dung phản hồi</label>
+                            <textarea id="admin-reply-content" required placeholder="Nhập tin nhắn..."
+                                style="height: 100px;"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="margin-top: 10px;"><i
+                                class="fa-solid fa-paper-plane"></i> Gửi phản hồi</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Confirm Modal -->
+        <div id="custom-confirm" class="modal"
+            style="background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+            <div class="modal-content"
+                style="background: white; width: 85%; max-width: 320px; border-radius: 20px; height: auto; align-self: center; margin: auto;">
+                <div class="modal-body" style="text-align: center; padding: 25px 20px;">
+                    <div style="font-size: 45px; color: var(--c-yellow); margin-bottom: 15px;"><i
+                            class="fa-solid fa-circle-question"></i></div>
+                    <h3 style="margin-bottom: 10px; font-size: 18px; color: var(--text-main);">Xác nhận</h3>
+                    <p id="confirm-msg"
+                        style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px; line-height: 1.5;">
+                    </p>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-outline" onclick="closeCustomConfirm()"
+                            style="flex: 1; margin: 0; padding: 12px; border-radius: 12px;">Hủy</button>
+                        <button class="btn btn-primary" onclick="handleConfirmYes()"
+                            style="flex: 1; margin: 0; padding: 12px; border-radius: 12px;">Đồng ý</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> <!-- end app-container -->
+
+    <script src="app.js"></script>
+</body>
+
+</html>
