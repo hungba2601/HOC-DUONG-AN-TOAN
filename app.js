@@ -9,6 +9,7 @@ let currentFileMimeType = null;
 let currentFileName = null;
 let studentReportsCache = []; // Cache for chat history
 let currentAdminTab = 'reports'; // Global for admin navigation
+let currentUnit = null; // Store user unit (school)
 
 // --- UI Utilities ---
 function showToast(message, type = 'success') {
@@ -97,21 +98,28 @@ async function apiCall(data) {
 async function login() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
+    const unit = document.getElementById('unit').value.trim();
     const role = document.querySelector('input[name="role"]:checked').value;
 
-    if (!username || !password) {
-        showToast("Vui lòng nhập đầy đủ Tài khoản/Mật khẩu!", "error");
+    if (!username || !password || !unit) {
+        showToast("Vui lòng nhập đầy đủ Đơn vị, Tài khoản và Mật khẩu!", "error");
+        return;
+    }
+
+    if (!unit.toUpperCase().includes("THCS")) {
+        showToast("Đơn vị phải bao gồm chữ 'THCS'. Ví dụ: THCS AN NHƠN", "error");
         return;
     }
 
     showLoader();
-    const res = await apiCall({ action: 'login', username, password, role });
+    const res = await apiCall({ action: 'login', username, password, role, unit });
     hideLoader();
 
     if (res && res.success) {
         showToast("Đăng nhập thành công!", "success");
         currentUser = username;
         currentRole = role;
+        currentUnit = res.unit || unit; // Luôn ưu tiên unit trả về từ server
 
         if (role === 'student') {
             document.getElementById('student-name').textContent = username;
@@ -131,19 +139,25 @@ async function register() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value.trim();
     const role = document.querySelector('input[name="role"]:checked').value;
+    const unit = document.getElementById('unit').value.trim();
 
     if (role !== 'student') {
         showToast("Chỉ học sinh mới có thể đăng ký!", "error");
         return;
     }
 
-    if (!username || !password) {
-        showToast("Vui lòng nhập đầy đủ thông tin!", "error");
+    if (!username || !password || !unit) {
+        showToast("Vui lòng nhập đầy đủ thông tin (bao gồm Đơn vị)!", "error");
+        return;
+    }
+
+    if (!unit.toUpperCase().includes("THCS")) {
+        showToast("Đơn vị phải bao gồm chữ 'THCS'. Ví dụ: THCS AN NHƠN", "error");
         return;
     }
 
     showLoader();
-    const res = await apiCall({ action: 'register', username, password, role });
+    const res = await apiCall({ action: 'register', username, password, role, unit });
     hideLoader();
 
     if (res && res.success) {
@@ -250,7 +264,8 @@ async function submitReport(e) {
         username: currentUser,
         type: 'Báo cáo ẩn danh',
         content,
-        details
+        details,
+        unit: currentUnit
     };
 
     if (currentFileBase64) {
@@ -506,7 +521,7 @@ async function loadAdminTab(tab, btn = null) {
     if (tab === 'reports' || tab === 'sos' || tab === 'chat') {
         // Nếu chưa có cache hoặc muốn tải mới, gọi API
         if (!adminReportsCache) {
-            const res = await apiCall({ action: 'getAllReports' });
+            const res = await apiCall({ action: 'getAllReports', unit: currentUnit });
             if (res && res.success) adminReportsCache = res;
         }
 
@@ -534,20 +549,31 @@ async function loadAdminTab(tab, btn = null) {
                     let statusBtnHtml = '';
                     let isNewBadge = (r.status === "Chưa xem" || !r.status) ? `<span style="background:var(--c-yellow); color:black; font-size:9px; padding:2px 5px; border-radius:4px; font-weight:700; margin-left:10px;">MỚI</span>` : '';
 
-                    if (r.status === "Đã xử lý") {
-                        statusBtnHtml = `<div style="margin-top:10px; color:var(--c-green); font-weight:600; font-size:12px;"><i class="fa-solid fa-circle-check"></i> Đã xử lý xong</div>`;
+                    const isProcessed = (r.status === "Đã xử lý" || r.status === "Đã xem");
+                    const processedStyle = isProcessed ? 'background-color: #f0fdf4; border-left: 5px solid var(--c-green);' : '';
+                    const escapedContent = r.content.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                    // Logic xác định hành vi khi nhấp vào khung tin nhắn
+                    const cardAction = (tab === 'chat' || tab === 'sos') ? `onclick="openAdminChatReply(${r.id}, '${r.username}')"` : '';
+
+                    if (isProcessed) {
+                        statusBtnHtml = `
+                            <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+                                <div style="color:var(--c-green); font-weight:600; font-size:12px;"><i class="fa-solid fa-circle-check"></i> Đã xử lý xong</div>
+                                ${(tab === 'chat' || tab === 'sos') ? `<button class="btn btn-outline" style="padding:6px 12px; font-size:12px; width:auto; border-color:var(--c-blue); color:var(--c-blue); margin:0;" onclick="event.stopPropagation(); openAdminChatReply(${r.id}, '${r.username}')"><i class="fa-solid fa-paper-plane"></i> Gửi thêm thông báo</button>` : ''}
+                            </div>
+                        `;
                     } else {
                         if (tab === 'chat' || tab === 'sos') {
-                            const escapedContent = r.content.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            statusBtnHtml = `<button class="btn btn-outline" style="padding:8px 12px; font-size:12px; margin-top:8px; width:auto; border-color:var(--primary); color:var(--primary);" onclick="openAdminChatReply(${r.id}, '${escapedContent}')"><i class="fa-solid fa-reply"></i> Đánh dấu & Phản hồi</button>`;
+                            statusBtnHtml = `<button class="btn btn-outline" style="padding:8px 12px; font-size:12px; margin-top:8px; width:auto; border-color:var(--primary); color:var(--primary);" onclick="event.stopPropagation(); openAdminChatReply(${r.id}, '${r.username}')"><i class="fa-solid fa-reply"></i> Đánh dấu & Phản hồi</button>`;
                         } else {
-                            statusBtnHtml = `<button class="btn btn-outline" style="padding:8px 12px; font-size:12px; margin-top:8px; width:auto; border-color:var(--primary); color:var(--primary);" onclick="markAsRead(${r.id}, '${tab}')"><i class="fa-solid fa-check"></i> Đánh dấu đã xem & xử lý</button>`;
+                            statusBtnHtml = `<button class="btn btn-outline" style="padding:8px 12px; font-size:12px; margin-top:8px; width:auto; border-color:var(--primary); color:var(--primary);" onclick="event.stopPropagation(); markAsRead(${r.id}, '${tab}')"><i class="fa-solid fa-check"></i> Đánh dấu đã xem & xử lý</button>`;
                         }
                     }
 
                     html += `
-                        <div class="report-item" style="position:relative;">
-                            <button class="delete-btn-item" onclick="deleteSingleReport(${r.id}, 'admin')" title="Xóa">
+                        <div class="report-item" ${cardAction} style="position:relative; cursor:pointer; ${processedStyle}">
+                            <button class="delete-btn-item" onclick="event.stopPropagation(); deleteSingleReport(${r.id}, 'admin')" title="Xóa">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                             <span style="font-size:11px; padding:3px 8px; background:var(--primary); color:white; border-radius:10px;">${r.username}</span>
@@ -564,6 +590,45 @@ async function loadAdminTab(tab, btn = null) {
             area.innerHTML = html;
         } else {
             area.innerHTML = '<div class="empty-state">Lỗi kết nối máy chủ.</div>';
+        }
+    }
+    // Xử lý Tab Quản lý người dùng
+    else if (tab === 'users') {
+        area.innerHTML = '<div style="text-align:center; padding:30px;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách học sinh...</div>';
+        const res = await apiCall({ action: 'getUsers', unit: currentUnit });
+        if (res && res.success) {
+            let html = '<h3 class="section-title">Danh sách học sinh đăng ký</h3>';
+            if (res.users.length === 0) {
+                html += '<div class="empty-state">Chưa có học sinh nào đăng ký.</div>';
+            } else {
+                res.users.forEach(u => {
+                    const dateStr = new Date(u.time).toLocaleDateString('vi-VN');
+                    html += `
+                        <div class="report-item" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div onclick="openAdminChatReply(null, '${u.username}')" style="cursor:pointer; flex: 1;">
+                                <strong style="color:var(--primary);">${u.username}</strong><br>
+                                <small>${u.unit || 'Chưa rõ đơn vị'}</small>
+                            </div>
+                            <div style="text-align:right; display:flex; gap:5px; flex-direction:column;">
+                                <div style="display:flex; gap:5px;">
+                                    <button class="btn btn-outline" title="Đổi MK" style="padding:5px 10px; font-size:11px; margin:0; width:auto; border-color:var(--c-yellow); color:var(--c-yellow);" onclick="openChangePasswordModal('${u.username}')">
+                                        <i class="fa-solid fa-key"></i> MK
+                                    </button>
+                                    <button class="btn btn-outline" title="Xóa HS" style="padding:5px 10px; font-size:11px; margin:0; width:auto; border-color:var(--c-red); color:var(--c-red);" onclick="deleteUserAdmin('${u.username}')">
+                                        <i class="fa-solid fa-user-xmark"></i> Xóa
+                                    </button>
+                                </div>
+                                <button class="btn btn-outline" style="padding:5px 10px; font-size:11px; margin:0; width:auto; border-color:var(--c-blue); color:var(--c-blue);" onclick="openAdminChatReply(null, '${u.username}')">
+                                    <i class="fa-solid fa-comments"></i> Chat
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            area.innerHTML = html;
+        } else {
+            area.innerHTML = '<div class="empty-state">Lỗi khi tải danh sách người dùng.</div>';
         }
     }
     // Xử lý Tab Tin tức
@@ -666,27 +731,65 @@ function markAsRead(id, currentTab) {
     });
 }
 
-function openAdminChatReply(id, contentText) {
+function openAdminChatReply(id, username) {
     document.getElementById('admin-reply-id').value = id;
-    document.getElementById('admin-reply-original').textContent = `"${contentText}"`;
+    document.getElementById('admin-reply-title').textContent = `Hội thoại với: ${username}`;
     document.getElementById('admin-reply-content').value = '';
+
+    // Hiển thị lịch sử chat
+    const chatHistoryContainer = document.getElementById('admin-chat-history');
+    chatHistoryContainer.innerHTML = '';
+
+    if (adminReportsCache && adminReportsCache.reports) {
+        // Lọc tất cả tin nhắn của học sinh này (ngược thời gian để tin mới ở dưới)
+        const userChats = adminReportsCache.reports
+            .filter(r => r.username === username && (r.type === 'Hỏi đáp & Tâm sự' || r.type === 'SOS Khẩn cấp'))
+            .reverse();
+
+        userChats.forEach(c => {
+            // Tin nhắn của học sinh
+            chatHistoryContainer.innerHTML += `
+                <div class="chat-message user-msg">
+                    <div class="msg-bubble">${c.content}</div>
+                </div>
+            `;
+            // Phản hồi của Admin (nếu có)
+            if (c.details) {
+                chatHistoryContainer.innerHTML += `
+                    <div class="chat-message admin-msg">
+                        <div class="msg-bubble" style="background: var(--primary); color:white;">${c.details}</div>
+                    </div>
+                `;
+            }
+        });
+    }
+
     openModal('admin-reply-modal');
+    chatHistoryContainer.scrollTop = chatHistoryContainer.scrollHeight;
 }
 
 async function submitAdminReply(e) {
     if (e) e.preventDefault();
     const id = document.getElementById('admin-reply-id').value;
-    const replyText = document.getElementById('admin-reply-content').value;
+    const inputField = document.getElementById('admin-reply-content');
+    const replyText = inputField.value;
 
     showLoader();
     const res = await apiCall({ action: 'replyChat', id: id, replyText: replyText });
     hideLoader();
 
     if (res && res.success) {
-        showToast("Đã phản hồi và đánh dấu xử lý!", "success");
-        closeModal('admin-reply-modal');
-        await refreshAdminCache(); // Xóa cache để tải lại dữ liệu mới nhất
+        showToast("Đã gửi thông báo cho học sinh!", "success");
+        // Quan trọng: Làm mới cache và giao diện
+        await refreshAdminCache();
+
+        // Cập nhật lại list ở ngoài
         loadAdminTab(currentAdminTab);
+
+        // Nếu là chat/sos, cập nhật ngay lịch sử trong modal
+        const usernameLabel = document.getElementById('admin-reply-title').textContent.replace('Hội thoại với: ', '');
+        // Tạm thời đóng modal và load lại dữ liệu mới nhất (hoặc cập nhật UI chat tại chỗ)
+        closeModal('admin-reply-modal');
     } else {
         showToast(res && res.message ? res.message : "Lỗi khi gửi phản hồi", "error");
     }
@@ -702,9 +805,51 @@ async function deleteCategoryAdmin(type) {
             loadAdminTab(currentAdminTab);
         } else {
             hideLoader();
-            showToast("Lỗi khi xóa dữ liệu!", "error");
+            showToast("Lỗi khi dọn dẹp!", "error");
         }
     });
+}
+
+function deleteUserAdmin(username) {
+    customConfirm(`Xác nhận XÓA VĨNH VIỄN tài khoản của học sinh: ${username}?`, async () => {
+        showLoader();
+        const res = await apiCall({ action: 'deleteUser', username: username, unit: currentUnit });
+        if (res && res.success) {
+            showToast("Đã xóa tài khoản học sinh!", "success");
+            loadAdminTab('users');
+        } else {
+            hideLoader();
+            showToast(res.message || "Lỗi khi xóa!", "error");
+        }
+    });
+}
+
+function openChangePasswordModal(username) {
+    document.getElementById('change-pass-username').value = username;
+    document.getElementById('change-pass-name-label').textContent = username;
+    document.getElementById('admin-new-pass').value = '';
+    openModal('admin-user-pass-modal');
+}
+
+async function submitChangePassword() {
+    const username = document.getElementById('change-pass-username').value;
+    const newPassword = document.getElementById('admin-new-pass').value.trim();
+
+    if (!newPassword) {
+        showToast("Vui lòng nhập mật khẩu mới!", "error");
+        return;
+    }
+
+    showLoader();
+    const res = await apiCall({ action: 'changePassword', username: username, newPassword: newPassword, unit: currentUnit });
+    if (res && res.success) {
+        showToast("Đã cập nhật mật khẩu mới!", "success");
+        closeModal('admin-user-pass-modal');
+        loadAdminTab('users');
+    } else {
+        hideLoader();
+        showToast(res.message || "Lỗi khi đổi mật khẩu!", "error");
+    }
 }
 
 // --- News Admin & Student Functions ---

@@ -196,6 +196,10 @@ body {
     transition: 0.2s border;
 }
 
+#unit::placeholder {
+    font-size: 10.5px;
+}
+
 .input-group input:focus {
     border-color: var(--primary);
 }

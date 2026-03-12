@@ -50,6 +50,12 @@
                     </div>
 
                     <div class="input-group">
+                        <i class="fa-solid fa-school"></i>
+                        <input type="text" id="unit" placeholder="Bắt buộc nhập đơn vị vd: THCS AN NHƠN" required
+                            style="padding-left: 40px;">
+                    </div>
+
+                    <div class="input-group">
                         <i class="fa-regular fa-user"></i>
                         <input type="text" id="username" placeholder="Tên đăng nhập" required>
                     </div>
@@ -95,6 +101,15 @@
                     <button class="menu-btn bg-purple" onclick="openChatModal()">
                         <i class="fa-solid fa-comments"></i>
                         <span>HỎI ĐÁP & TÂM SỰ</span>
+                    </button>
+                </div>
+
+                <!-- Footer Link -->
+                <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+                    <button class="btn btn-outline"
+                        style="width: auto; padding: 10px 20px; font-size: 13px; border-color: #ddd; color: var(--text-muted);"
+                        onclick="openModal('about-modal')">
+                        <i class="fa-solid fa-circle-info"></i> Giới thiệu & Hướng dẫn
                     </button>
                 </div>
 
@@ -168,12 +183,27 @@
                         <span>TIN TỨC & KIẾN THỨC</span>
                         <i class="fa-solid fa-chevron-right arrow"></i>
                     </div>
+                    <div class="admin-menu-item" onclick="loadAdminTab('users')">
+                        <div class="icon-wrap" style="background: var(--c-green);"><i
+                                class="fa-solid fa-users-gear"></i></div>
+                        <span>QUẢN LÝ NGƯỜI DÙNG</span>
+                        <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
                     <div class="admin-menu-item" onclick="loadAdminTab('stats')"
                         style="border-top: 2px solid #eee; margin-top: 10px; padding-top: 15px;">
                         <div class="icon-wrap" style="background: var(--text-main);"><i
                                 class="fa-solid fa-chart-pie"></i></div>
                         <span style="font-weight: 700;">THỐNG KÊ CHI TIẾT</span>
                         <i class="fa-solid fa-chevron-right arrow"></i>
+                    </div>
+
+                    <!-- Footer Link -->
+                    <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+                        <button class="btn btn-outline"
+                            style="width: auto; padding: 10px 20px; font-size: 13px; border-color: #ddd; color: var(--text-muted);"
+                            onclick="openModal('about-modal')">
+                            <i class="fa-solid fa-circle-info"></i> Giới thiệu & Hướng dẫn
+                        </button>
                     </div>
                 </div>
 
@@ -384,28 +414,114 @@
         <div id="admin-reply-modal" class="modal"
             style="background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
             <div class="modal-content"
-                style="background: white; width: 90%; max-width: 400px; border-radius: 20px; height: auto; align-self: center; margin: auto;">
+                style="background: white; width: 95%; max-width: 450px; border-radius: 20px; height: 90vh; display: flex; flex-direction: column; margin: auto;">
                 <div class="modal-header">
-                    <h2>Phản Hồi Học Sinh</h2>
+                    <h2 id="admin-reply-title">Hội thoại với học sinh</h2>
                     <button class="close-btn" onclick="closeModal('admin-reply-modal')"><i
                             class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="modal-body">
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">Tin nhắn của học sinh:
-                    </p>
-                    <div id="admin-reply-original"
-                        style="background: rgba(0,0,0,0.05); padding: 12px; border-radius: 8px; font-style: italic; margin-bottom: 15px; font-size: 14px; word-break: break-word;">
-                    </div>
-                    <form id="admin-reply-form" onsubmit="submitAdminReply(event)">
+                <div class="modal-body chat-body" id="admin-chat-history"
+                    style="flex: 1; background: #f8fafc; padding: 15px;">
+                    <!-- Lịch sử chat sẽ hiện ở đây -->
+                </div>
+                <div class="chat-footer" style="padding: 15px; border-top: 1px solid #eee;">
+                    <form id="admin-reply-form" onsubmit="submitAdminReply(event)"
+                        style="display: flex; gap: 10px; width: 100%;">
                         <input type="hidden" id="admin-reply-id">
-                        <div class="form-group">
-                            <label>Nhập nội dung phản hồi</label>
-                            <textarea id="admin-reply-content" required placeholder="Nhập tin nhắn..."
-                                style="height: 100px;"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary" style="margin-top: 10px;"><i
-                                class="fa-solid fa-paper-plane"></i> Gửi phản hồi</button>
+                        <input type="text" id="admin-reply-content" required placeholder="Nhập nội dung phản hồi..."
+                            style="flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ddd; outline: none;">
+                        <button type="submit" class="btn btn-primary"
+                            style="width: auto; margin: 0; padding: 10px 20px; border-radius: 20px;">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- About & Guide Modal -->
+        <div id="about-modal" class="modal"
+            style="background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+            <div class="modal-content"
+                style="background: white; width: 95%; max-width: 450px; border-radius: 24px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; margin: auto;">
+                <div class="modal-header"
+                    style="background: var(--grad-primary); border-radius: 0; padding: 25px 20px;">
+                    <h2 style="color: white; margin: 0; font-size: 1.2rem;"><i class="fa-solid fa-shield-halved"></i>
+                        Giới thiệu ứng dụng</h2>
+                    <button class="close-btn" onclick="closeModal('about-modal')"
+                        style="color: white; background: rgba(255,255,255,0.2);"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 25px 20px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div
+                            style="width: 80px; height: 80px; background: #eff6ff; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; color: var(--primary); font-size: 40px;">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </div>
+                        <h3 style="color: var(--primary); margin: 0; font-size: 1.4rem;">AN TOÀN HỌC ĐƯỜNG</h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Môi trường học tập hạnh
+                            phúc & an toàn</p>
+                    </div>
+
+                    <div
+                        style="background: #f8fafc; border-radius: 16px; padding: 20px; margin-bottom: 25px; border: 1px solid #edf2f7;">
+                        <h4
+                            style="margin: 0 0 10px 0; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-star" style="color: #ecc94b;"></i> Sứ mệnh của App
+                        </h4>
+                        <p style="margin: 0; font-size: 0.95rem; line-height: 1.6; color: #4a5568;">
+                            Ứng dụng được thiết kế nhằm tạo ra cầu nối liên lạc an toàn giữa nhà trường và học sinh.
+                            Chúng mình giúp bạn lên tiếng bảo vệ bản thân và bạn bè, đồng thời nhận được sự hỗ trợ nhanh
+                            nhất từ các thầy cô.
+                        </p>
+                    </div>
+
+                    <h4 style="margin: 30px 0 15px 0; padding-left: 10px; border-left: 4px solid var(--primary);">HƯỚNG
+                        DẪN SỬ DỤNG</h4>
+
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div style="display: flex; gap: 15px;">
+                            <div
+                                style="width: 32px; height: 32px; background: var(--c-yellow); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 14px;">
+                                1</div>
+                            <div>
+                                <strong style="display: block; margin-bottom: 4px;">Báo cáo ẩn danh</strong>
+                                <span style="font-size: 0.9rem; color: #718096;">Gửi tin báo về các vấn đề bạo lực, rủi
+                                    ro mà không lo bị lộ danh tính.</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 15px;">
+                            <div
+                                style="width: 32px; height: 32px; background: var(--c-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 14px;">
+                                2</div>
+                            <div>
+                                <strong style="display: block; margin-bottom: 4px;">SOS Khẩn cấp</strong>
+                                <span style="font-size: 0.9rem; color: #718096;">Kích hoạt khi bạn đang gặp nguy hiểm
+                                    cần sự trợ giúp ngay lập tức của nhà trường.</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 15px;">
+                            <div
+                                style="width: 32px; height: 32px; background: var(--c-blue); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 14px;">
+                                3</div>
+                            <div>
+                                <strong style="display: block; margin-bottom: 4px;">Tâm sự & Giải đáp</strong>
+                                <span style="font-size: 0.9rem; color: #718096;">Nơi bạn có thể chia sẻ những lo lắng,
+                                    tâm tư và nhận lời khuyên chân thành từ thầy cô.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        style="margin-top: 40px; text-align: center; border-top: 1px dashed #cbd5e0; padding-top: 20px; opacity: 0.8;">
+                        <p style="font-size: 0.85rem; color: #a0aec0; margin: 0 0 20px 0;">Phiên bản 2.0 - © 2026</p>
+                        <button class="btn btn-primary" style="width: auto; padding: 12px 30px; border-radius: 12px;"
+                            onclick="closeModal('about-modal')">
+                            Đã hiểu, quay lại
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -428,6 +544,32 @@
                         <button class="btn btn-primary" onclick="handleConfirmYes()"
                             style="flex: 1; margin: 0; padding: 12px; border-radius: 12px;">Đồng ý</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Change Password Modal -->
+        <div id="admin-user-pass-modal" class="modal"
+            style="background: rgba(0,0,0,0.6); align-items: center; justify-content: center;">
+            <div class="modal-content"
+                style="background: white; width: 85%; max-width: 320px; border-radius: 20px; height: auto; align-self: center; margin: auto;">
+                <div class="modal-header">
+                    <h3>Đổi mật khẩu HS</h3>
+                    <button class="close-btn" onclick="closeModal('admin-user-pass-modal')"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" style="padding-bottom: 25px;">
+                    <input type="hidden" id="change-pass-username">
+                    <div class="form-group">
+                        <label style="font-size: 13px;">Mật khẩu mới cho <br><strong id="change-pass-name-label"
+                                style="color:var(--primary)"></strong></label>
+                        <input type="text" id="admin-new-pass" placeholder="Nhập mật khẩu mới"
+                            style="width:100%; padding:12px; border-radius:12px; border:1px solid #ddd; margin-top:10px; outline:none;">
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 15px; border-radius: 12px;"
+                        onclick="submitChangePassword()">
+                        <i class="fa-solid fa-check"></i> Cập nhật mật khẩu
+                    </button>
                 </div>
             </div>
         </div>
