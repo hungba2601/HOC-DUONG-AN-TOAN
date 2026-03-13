@@ -66,6 +66,10 @@
                         <input type="password" id="password" placeholder="Mật khẩu" required>
                     </div>
 
+                    <div id="forgot-pass-container" style="text-align: right; margin-bottom: 20px; margin-top: -10px;">
+                        <a href="https://zalo.me/0938750424" target="_blank" class="forgot-pass-link">Quên mật khẩu?</a>
+                    </div>
+
                     <button class="btn btn-primary" onclick="login()">Đăng nhập</button>
                     <button class="btn btn-outline" id="btn-register" onclick="register()">Đăng ký tài khoản</button>
                 </div>
@@ -116,7 +120,7 @@
                     <div
                         style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:5px;">
                         <h3 class="section-title" style="margin:0;">Báo cáo gần đây (Chỉ bạn thấy)</h3>
-                        <button onclick="deleteAllStudentReports()"
+                        <button id="btn-delete-all-student" onclick="deleteAllStudentReports()"
                             style="background:none; border:none; color:var(--c-red); font-size:12px; font-weight:600; cursor:pointer;">
                             <i class="fa-solid fa-trash-can"></i> Xóa hết
                         </button>
@@ -152,7 +156,7 @@
                 <div class="user-info">
                     <div class="avatar"><i class="fa-solid fa-user-tie"></i></div>
                     <div class="user-details">
-                        <span class="greeting">Phiên quản trị,</span>
+                        <span class="greeting">Xin chào,</span>
                         <strong id="admin-name">Admin</strong>
                     </div>
                 </div>
@@ -195,7 +199,7 @@
                         <span>QUẢN LÝ NGƯỜI DÙNG</span>
                         <i class="fa-solid fa-chevron-right arrow"></i>
                     </div>
-                    <div class="admin-menu-item" onclick="loadAdminTab('bulk-users')">
+                    <div id="admin-menu-bulk-users" class="admin-menu-item" onclick="loadAdminTab('bulk-users')">
                         <div class="icon-wrap" style="background: var(--c-purple);"><i
                                 class="fa-solid fa-file-import"></i></div>
                         <span>THÊM TÀI KHOẢN ĐĂNG KÝ</span>
@@ -331,6 +335,7 @@
                 </div>
                 <div class="modal-body">
                     <form id="add-news-form" onsubmit="submitNews(event)">
+                        <input type="hidden" id="edit-news-id">
                         <div class="form-group">
                             <label>Tiêu đề bài viết</label>
                             <input type="text" id="news-title" required placeholder="Nhập tiêu đề">

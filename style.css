@@ -116,8 +116,15 @@ body {
     }
 
     .web-mode .admin-content>.section-title,
-    .web-mode .admin-content>div[style*="border-bottom"] {
+    .web-mode .admin-content>div[style*="border-bottom"],
+    .web-mode .bulk-user-mgmt {
         grid-column: 1 / -1;
+    }
+
+    .web-mode .bulk-user-mgmt {
+        grid-column: 1 / -1;
+        width: 100%;
+        margin: 0 auto;
     }
 
     .web-mode .dashboard-content {
@@ -215,6 +222,19 @@ body {
     border-radius: 24px;
     padding: 30px 20px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.forgot-pass-link {
+    font-size: 13px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+.forgot-pass-link:hover {
+    color: var(--primary-dark);
+    text-shadow: 0 0 1px rgba(59, 130, 246, 0.3);
 }
 
 .role-selector {

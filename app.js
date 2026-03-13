@@ -65,11 +65,21 @@ function handleConfirmYes() {
 
 function toggleRegisterBtn() {
     const role = document.querySelector('input[name="role"]:checked').value;
-    const btn = document.getElementById('btn-register');
+    const btnReg = document.getElementById('btn-register');
+    const forgotPass = document.getElementById('forgot-pass-container');
+
+    // Nút đăng ký chỉ hiện cho Học sinh
     if (role === 'student') {
-        btn.classList.remove('hidden');
+        btnReg.classList.remove('hidden');
     } else {
-        btn.classList.add('hidden');
+        btnReg.classList.add('hidden');
+    }
+
+    // Link quên mật khẩu ẩn cho Quản trị
+    if (role === 'admin') {
+        forgotPass.classList.add('hidden');
+    } else {
+        forgotPass.classList.remove('hidden');
     }
 }
 
@@ -117,6 +127,11 @@ async function login() {
 
         if (role === 'student') {
             document.getElementById('student-name').textContent = username;
+
+            // Ẩn nút xóa hết báo cáo đối với học sinh
+            const btnDeleteAll = document.getElementById('btn-delete-all-student');
+            if (btnDeleteAll) btnDeleteAll.classList.add('hidden');
+
             switchScreen('student-dashboard');
             loadStudentData();
         } else {
@@ -124,12 +139,15 @@ async function login() {
             const roleName = role === 'admin' ? 'Quản trị' : 'Giáo viên';
             document.getElementById('admin-name').textContent = roleName + ": " + username;
 
-            // Phân quyền: Chỉ admin mới thấy mục Quản lý người dùng
+            // Phân quyền: Chỉ admin mới thấy mục Quản lý người dùng và Thêm tài khoản
             const userMenu = document.getElementById('admin-menu-users');
+            const bulkUserMenu = document.getElementById('admin-menu-bulk-users');
             if (role === 'admin') {
                 userMenu.classList.remove('hidden');
+                bulkUserMenu.classList.remove('hidden');
             } else {
                 userMenu.classList.add('hidden');
+                bulkUserMenu.classList.add('hidden');
             }
 
             switchScreen('admin-dashboard');
@@ -217,11 +235,14 @@ async function loadStudentData() {
                     simplifiedReply = `<div style="margin-top: 8px; padding: 10px; background: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--c-red); border-radius: 4px; font-size: 13px;"><strong><i class="fa-solid fa-headset"></i> Phản hồi hỗ trợ:</strong><br>${r.details}</div>`;
                 }
 
+                const deleteBtnHtml = (currentRole === 'admin') ? `
+                    <button class="delete-btn-item" onclick="deleteSingleReport(${r.id}, 'student')" title="Xóa">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>` : '';
+
                 container.innerHTML += `
                     <div class="report-item" style="position:relative;">
-                        <button class="delete-btn-item" onclick="deleteSingleReport(${r.id}, 'student')" title="Xóa">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+                        ${deleteBtnHtml}
                         <h4 style="padding-right:30px;">${r.type}</h4>
                         <p>${r.content}</p>
                         ${simplifiedReply}
@@ -324,11 +345,11 @@ function previewFile() {
 
             previewContainer.classList.remove('hidden');
             if (file.type.startsWith('image/')) {
-                previewContainer.innerHTML = `<img src="${e.target.result}"><i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
+                previewContainer.innerHTML = `< img src = "${e.target.result}" > <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
             } else if (file.type.startsWith('video/')) {
-                previewContainer.innerHTML = `<video src="${e.target.result}"></video><i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
+                previewContainer.innerHTML = `< video src = "${e.target.result}" ></video > <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
             } else {
-                previewContainer.innerHTML = `<i class="fa-solid fa-file" style="font-size:24px; color:var(--primary); margin:13px;"></i><i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
+                previewContainer.innerHTML = `< i class="fa-solid fa-file" style = "font-size:24px; color:var(--primary); margin:13px;" ></i > <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
             }
         };
         reader.readAsDataURL(file);
@@ -365,7 +386,7 @@ async function openSOSModal() {
             let adminHtml = '';
             res.admins.forEach(admin => {
                 adminHtml += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px; border-bottom: 1px solid #eee;">
+                    < div style = "display:flex; justify-content:space-between; align-items:center; padding: 12px; border-bottom: 1px solid #eee;" >
                         <div>
                             <div style="font-weight:600; font-size:14px; color:black;">${admin.name}</div>
                             <div style="color:var(--text-muted); font-size:12px;">SĐT: ${admin.phone}</div>
@@ -373,8 +394,8 @@ async function openSOSModal() {
                         <a href="tel:${admin.phone}" class="btn" style="width:auto; padding:5px 15px; font-size:12px; background:var(--c-green); color:white; border-radius:30px; text-decoration:none;">
                             <i class="fa-solid fa-phone"></i> Gọi ngay
                         </a>
-                    </div>
-                `;
+                    </div >
+                    `;
             });
             adminListContainer.innerHTML = adminHtml || '<p style="font-size:12px; color:red; padding:10px;">Chưa có thông tin Admin liên hệ.</p>';
         } else {
@@ -418,26 +439,26 @@ function openChatModal() {
 function loadChatHistory() {
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = `
-        <div class="chat-message admin-msg">
-            <div class="msg-bubble">Chào bạn, bạn muốn tâm sự hay hỏi đáp gì không? Thông tin của bạn được bảo mật.</div>
-        </div>
-    `;
+                    < div class="chat-message admin-msg" >
+                        <div class="msg-bubble">Chào bạn, bạn muốn tâm sự hay hỏi đáp gì không? Thông tin của bạn được bảo mật.</div>
+        </div >
+                    `;
 
     // Filter and display chat history
     const chats = studentReportsCache.filter(r => r.type === 'Hỏi đáp & Tâm sự');
     // Result is reversed (newest first), we want oldest first for chat flow
     [...chats].reverse().forEach(c => {
         chatBox.innerHTML += `
-            <div class="chat-message user-msg">
-                <div class="msg-bubble">${c.content}</div>
-            </div>
-        `;
+                    < div class="chat-message user-msg" >
+                        <div class="msg-bubble">${c.content}</div>
+            </div >
+                    `;
         if (c.details && c.status === 'Đã xử lý') {
             chatBox.innerHTML += `
-                <div class="chat-message admin-msg">
-                    <div class="msg-bubble">${c.details}</div>
-                </div>
-            `;
+                    < div class="chat-message admin-msg" >
+                        <div class="msg-bubble">${c.details}</div>
+                </div >
+                    `;
         }
     });
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -451,10 +472,10 @@ function sendChat() {
 
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML += `
-        <div class="chat-message user-msg">
-            <div class="msg-bubble">${msg}</div>
-        </div>
-    `;
+                    < div class="chat-message user-msg" >
+                        <div class="msg-bubble">${msg}</div>
+        </div >
+                    `;
     input.value = '';
     chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -475,10 +496,10 @@ function sendChat() {
     // Auto reply
     setTimeout(() => {
         chatBox.innerHTML += `
-            <div class="chat-message admin-msg">
-                <div class="msg-bubble">Quản trị viên đã nhận được tin nhắn. Phản hồi sẽ hiển thị ở bảng "Báo cáo gần đây".</div>
-            </div>
-        `;
+                    < div class="chat-message admin-msg" >
+                        <div class="msg-bubble">Quản trị viên đã nhận được tin nhắn. Phản hồi sẽ hiển thị ở bảng "Báo cáo gần đây".</div>
+            </div >
+                    `;
         chatBox.scrollTop = chatBox.scrollHeight;
     }, 1000);
 }
@@ -494,6 +515,12 @@ function backToAdminMenu() {
 }
 
 async function loadAdminTab(tab, btn = null) {
+    // Phân quyền: Chỉ admin mới được vào tab Quản lý người dùng và Thêm tài khoản
+    if ((tab === 'users' || tab === 'bulk-users') && currentRole !== 'admin') {
+        showToast("Chỉ Admin mới có quyền truy cập mục này!", "error");
+        return;
+    }
+
     currentAdminTab = tab; // Lưu tab hiện tại
     const mainMenu = document.getElementById('admin-main-menu');
     const detailView = document.getElementById('admin-detail-view');
@@ -523,10 +550,10 @@ async function loadAdminTab(tab, btn = null) {
             const stats = adminReportsCache.stats;
             area.innerHTML = '<h3 class="section-title">Thống kê chi tiết hệ thống</h3>';
             statsContainer.style.display = 'block';
-            document.getElementById('adm-stat-total').textContent = `Nhận: ${stats.total.received} | Xử lý: ${stats.total.processed}`;
-            document.getElementById('adm-stat-sos').textContent = `Nhận: ${stats.sos.received} | Xử lý: ${stats.sos.processed}`;
-            document.getElementById('adm-stat-chat').textContent = `Nhận: ${stats.chat.received} | Xử lý: ${stats.chat.processed}`;
-            document.getElementById('adm-stat-anon').textContent = `Nhận: ${stats.anonymous.received} | Xử lý: ${stats.anonymous.processed}`;
+            document.getElementById('adm-stat-total').textContent = `Nhận: ${stats.total.received} | Xử lý: ${stats.total.processed} `;
+            document.getElementById('adm-stat-sos').textContent = `Nhận: ${stats.sos.received} | Xử lý: ${stats.sos.processed} `;
+            document.getElementById('adm-stat-chat').textContent = `Nhận: ${stats.chat.received} | Xử lý: ${stats.chat.processed} `;
+            document.getElementById('adm-stat-anon').textContent = `Nhận: ${stats.anonymous.received} | Xử lý: ${stats.anonymous.processed} `;
         } else {
             area.innerHTML = '<div class="empty-state">Không thể tải dữ liệu thống kê.</div>';
         }
@@ -547,12 +574,15 @@ async function loadAdminTab(tab, btn = null) {
 
             const filtered = adminReportsCache.reports.filter(r => r.type === filterType);
 
+            const deleteCategoryBtnHtml = (currentRole === 'admin') ? `
+                <button class="btn-refresh" onclick="deleteCategoryAdmin('${filterType}')" style="background: none; border: none; color: var(--c-red); cursor: pointer; font-size: 14px; font-weight: 600;">
+                    <i class="fa-solid fa-trash-can"></i> Xóa hết mục này
+                </button>` : '';
+
             let html = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom: 2px solid #eee; padding-bottom:8px;">
                     <h3 class="section-title" style="margin:0;">${filterType}</h3>
-                    <button class="btn-refresh" onclick="deleteCategoryAdmin('${filterType}')" style="background: none; border: none; color: var(--c-red); cursor: pointer; font-size: 14px; font-weight: 600;">
-                        <i class="fa-solid fa-trash-can"></i> Xóa hết mục này
-                    </button>
+                    ${deleteCategoryBtnHtml}
                 </div>
             `;
             if (filtered.length === 0) {
@@ -567,7 +597,6 @@ async function loadAdminTab(tab, btn = null) {
 
                     const isProcessed = (r.status === "Đã xử lý" || r.status === "Đã xem");
                     const processedStyle = isProcessed ? 'background-color: #f0fdf4; border-left: 5px solid var(--c-green);' : '';
-                    const escapedContent = r.content.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                     // Logic xác định hành vi khi nhấp vào khung tin nhắn
                     const cardAction = (tab === 'chat' || tab === 'sos') ? `onclick="openAdminChatReply(${r.id}, '${r.username}')"` : '';
@@ -587,11 +616,14 @@ async function loadAdminTab(tab, btn = null) {
                         }
                     }
 
+                    const deleteBtnAdminHtml = (currentRole === 'admin') ? `
+                        <button class="delete-btn-item" onclick="event.stopPropagation(); deleteSingleReport(${r.id}, 'admin')" title="Xóa">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>` : '';
+
                     html += `
                         <div class="report-item" ${cardAction} style="position:relative; cursor:pointer; ${processedStyle}">
-                            <button class="delete-btn-item" onclick="event.stopPropagation(); deleteSingleReport(${r.id}, 'admin')" title="Xóa">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
+                            ${deleteBtnAdminHtml}
                             <span style="font-size:11px; padding:3px 8px; background:var(--primary); color:white; border-radius:10px;">${r.username}</span>
                             ${isNewBadge}
                             <h4 style="margin-top:8px; padding-right:30px;">${r.content}</h4>
@@ -619,40 +651,40 @@ async function loadAdminTab(tab, btn = null) {
             const classes = [...new Set(adminUsersCache.map(u => u.className).filter(c => c && c !== "---"))].sort();
             let classOptions = '<option value="all">Tất cả các lớp</option>';
             classes.forEach(c => {
-                classOptions += `<option value="${c}">${c}</option>`;
+                classOptions += `< option value = "${c}" > ${c}</option > `;
             });
 
             let html = `
-                <div id="user-mgmt-header" style="grid-column: 1 / -1; display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
-                    <h3 class="section-title" style="margin:0;"><i class="fa-solid fa-users-gear"></i> QUẢN LÝ NGƯỜI DÙNG</h3>
-                    <div class="user-management-controls section-card" style="margin:0; display:flex; gap:15px; align-items:center; background:#f0f9ff; border:1px solid #bae6fd; padding: 10px 20px; width: auto; border-radius: 12px; flex-wrap: wrap;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">ĐỐI TƯỢNG:</label>
-                            <select id="user-role-filter" onchange="renderAdminUsers()" style="padding:6px 10px; border-radius:8px; border:1px solid #ddd; outline:none; font-size:12px; min-width:110px; background: white;">
-                                <option value="all">Tất cả</option>
-                                <option value="student">Học sinh</option>
-                                <option value="teacher">Giáo viên</option>
-                            </select>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">LỚP:</label>
-                            <select id="user-class-filter" onchange="renderAdminUsers()" style="padding:6px 10px; border-radius:8px; border:1px solid #ddd; outline:none; font-size:12px; min-width:120px; background: white;">
-                                ${classOptions}
-                            </select>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">SẮP XẾP:</label>
-                            <button class="btn btn-outline" onclick="sortAdminUsers()" style="margin:0; padding:6px 12px; width:auto; background:white; border-radius:8px; font-size:12px; font-weight: 600; display: flex; align-items: center; gap: 5px;">
-                                <i class="fa-solid fa-sort-alpha-down"></i> Tên A-Z
+                        < div id = "user-mgmt-header" style = "grid-column: 1 / -1; display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;" >
+                        <h3 class="section-title" style="margin:0;"><i class="fa-solid fa-users-gear"></i> QUẢN LÝ NGƯỜI DÙNG</h3>
+                        <div class="user-management-controls section-card" style="margin:0; display:flex; gap:15px; align-items:center; background:#f0f9ff; border:1px solid #bae6fd; padding: 10px 20px; width: auto; border-radius: 12px; flex-wrap: wrap;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">ĐỐI TƯỢNG:</label>
+                                <select id="user-role-filter" onchange="renderAdminUsers()" style="padding:6px 10px; border-radius:8px; border:1px solid #ddd; outline:none; font-size:12px; min-width:110px; background: white;">
+                                    <option value="all">Tất cả</option>
+                                    <option value="student">Học sinh</option>
+                                    <option value="teacher">Giáo viên</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">LỚP:</label>
+                                <select id="user-class-filter" onchange="renderAdminUsers()" style="padding:6px 10px; border-radius:8px; border:1px solid #ddd; outline:none; font-size:12px; min-width:120px; background: white;">
+                                    ${classOptions}
+                                </select>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label style="font-size:11px; font-weight:700; color:var(--primary); white-space:nowrap;">SẮP XẾP:</label>
+                                <button class="btn btn-outline" onclick="sortAdminUsers()" style="margin:0; padding:6px 12px; width:auto; background:white; border-radius:8px; font-size:12px; font-weight: 600; display: flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-sort-alpha-down"></i> Tên A-Z
+                                </button>
+                            </div>
+                            <button class="btn btn-primary" onclick="exportUsersToExcel()" style="margin:0; padding:8px 15px; width:auto; font-size:12px; border-radius:8px; display: flex; align-items: center; gap: 5px; background: var(--c-green); box-shadow: none;">
+                                <i class="fa-solid fa-file-excel"></i> Xuất Excel
                             </button>
                         </div>
-                        <button class="btn btn-primary" onclick="exportUsersToExcel()" style="margin:0; padding:8px 15px; width:auto; font-size:12px; border-radius:8px; display: flex; align-items: center; gap: 5px; background: var(--c-green); box-shadow: none;">
-                            <i class="fa-solid fa-file-excel"></i> Xuất Excel
-                        </button>
-                    </div>
-                </div>
-                <div id="admin-users-list-container" style="grid-column: 1 / -1; width: 100%;"></div>
-            `;
+                    </div >
+                        <div id="admin-users-list-container" style="grid-column: 1 / -1; width: 100%;"></div>
+                    `;
             area.innerHTML = html;
             renderAdminUsers();
         } else {
@@ -677,12 +709,20 @@ async function loadAdminTab(tab, btn = null) {
                         ? `<a href="${n.content}" target="_blank" style="font-size: 12px; color: var(--c-blue); text-decoration: underline;">Xem liên kết/tài liệu</a>`
                         : `<p style="font-size: 13px; color: var(--text-muted);">${n.content}</p>`;
 
-                    newsHtml += `
-                        <div class="report-item" style="position:relative;">
-                            <button class="delete-btn-item" onclick="deleteSingleNews(${n.id})" title="Xóa">
+                    const actionBtnsHtml = (currentRole === 'admin') ? `
+                        <div style="position: absolute; top: 15px; right: 15px; display: flex; gap: 8px;">
+                            <button class="btn-action-mini color-yellow" onclick="openEditNewsModal(${n.id})" title="Chỉnh sửa" style="padding: 5px 8px; font-size: 12px; border-radius: 6px;">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button class="btn-action-mini color-red" onclick="deleteSingleNews(${n.id})" title="Xóa" style="padding: 5px 8px; font-size: 12px; border-radius: 6px;">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
-                            <h4 style="color:var(--primary); padding-right:30px;">${n.title}</h4>
+                        </div>` : '';
+
+                    newsHtml += `
+                        <div class="report-item" style="position:relative; padding-top: 15px;">
+                            ${actionBtnsHtml}
+                            <h4 style="color:var(--primary); padding-right:70px;">${n.title}</h4>
                             <small>${dateStr} | Loại: ${n.type}</small><br>
                             ${contentHtml}
                         </div>
@@ -691,14 +731,17 @@ async function loadAdminTab(tab, btn = null) {
             }
         }
 
+        const deleteAllNewsBtnHtml = (currentRole === 'admin') ? `
+            <button class="btn btn-outline" style="margin:0; padding: 8px 12px; width:auto; font-size: 12px; border-color:var(--c-red); color:var(--c-red);" onclick="deleteAllNews()">
+                <i class="fa-solid fa-trash-can"></i> Xóa hết
+            </button>` : '';
+
         area.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom:10px;">
                 <h3 class="section-title" style="margin:0;">Quản lý Tin Tức</h3>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn btn-outline" style="margin:0; padding: 8px 12px; width:auto; font-size: 12px; border-color:var(--c-red); color:var(--c-red);" onclick="deleteAllNews()">
-                        <i class="fa-solid fa-trash-can"></i> Xóa hết
-                    </button>
-                    <button class="btn btn-primary" style="margin:0; padding: 8px 15px; width:auto; font-size: 13px;" onclick="openModal('admin-news-modal')">
+                    ${deleteAllNewsBtnHtml}
+                    <button class="btn btn-primary" style="margin:0; padding: 8px 15px; width:auto; font-size: 13px;" onclick="openAddNewsModal()">
                         <i class="fa-solid fa-plus"></i> Thêm bài viết
                     </button>
                 </div>
@@ -765,7 +808,7 @@ function markAsRead(id, currentTab) {
 
 function openAdminChatReply(id, username) {
     document.getElementById('admin-reply-id').value = id;
-    document.getElementById('admin-reply-title').textContent = `Hội thoại với: ${username}`;
+    document.getElementById('admin-reply-title').textContent = `Hội thoại với: ${username} `;
     document.getElementById('admin-reply-content').value = '';
 
     // Hiển thị lịch sử chat
@@ -781,17 +824,17 @@ function openAdminChatReply(id, username) {
         userChats.forEach(c => {
             // Tin nhắn của học sinh
             chatHistoryContainer.innerHTML += `
-                <div class="chat-message user-msg">
-                    <div class="msg-bubble">${c.content}</div>
-                </div>
-            `;
+                        < div class="chat-message user-msg" >
+                            <div class="msg-bubble">${c.content}</div>
+                </div >
+                        `;
             // Phản hồi của Admin (nếu có)
             if (c.details) {
                 chatHistoryContainer.innerHTML += `
-                    <div class="chat-message admin-msg">
-                        <div class="msg-bubble" style="background: var(--primary); color:white;">${c.details}</div>
-                    </div>
-                `;
+                        < div class="chat-message admin-msg" >
+                            <div class="msg-bubble" style="background: var(--primary); color:white;">${c.details}</div>
+                    </div >
+                        `;
             }
         });
     }
@@ -828,7 +871,7 @@ async function submitAdminReply(e) {
 }
 
 async function deleteCategoryAdmin(type) {
-    customConfirm(`Bạn có chắc chắn muốn xóa TOÀN BỘ nội dung mục "${type}" trên hệ thống và Google Sheet?`, async () => {
+    customConfirm(`Bạn có chắc chắn muốn xóa TOÀN BỘ nội dung mục "${type}" trên hệ thống và Google Sheet ? `, async () => {
         showLoader();
         const res = await apiCall({ action: 'deleteCategoryReports', type: type });
         if (res && res.success) {
@@ -925,16 +968,61 @@ function previewNewsFile() {
     }
 }
 
+function openAddNewsModal() {
+    document.getElementById('edit-news-id').value = '';
+    document.getElementById('add-news-form').reset();
+    document.querySelector('#admin-news-modal h2').textContent = "Thêm Bài Viết Mới";
+    document.querySelector('#add-news-form button[type="submit"]').textContent = "Đăng bài viết";
+    document.getElementById('news-file-preview-container').classList.add('hidden');
+    toggleNewsInput();
+    openModal('admin-news-modal');
+}
+
+function openEditNewsModal(id) {
+    const news = adminNewsCache.find(n => n.id === id);
+    if (!news) return;
+
+    document.getElementById('edit-news-id').value = id;
+    document.getElementById('news-title').value = news.title;
+    document.getElementById('news-type').value = news.type;
+
+    // reset file preview
+    document.getElementById('news-file-preview-container').classList.add('hidden');
+    currentFileBase64 = null;
+
+    if (news.type === 'Text') {
+        document.getElementById('news-content').value = news.content;
+    } else if (news.type === 'Link') {
+        document.getElementById('news-content').value = news.content;
+    } else if (news.type === 'PDF') {
+        // PDF content is URL, but we don't necessarily want to put URL in content field
+        // But the form uses news-content for Link and Text. 
+        // For PDF, we just show that it has a file, but if they want to change it, they upload again.
+        document.getElementById('news-content').value = news.content;
+        document.getElementById('news-file-name').textContent = "Bấm để thay đổi tài liệu hiện tại";
+    }
+
+    toggleNewsInput();
+
+    document.querySelector('#admin-news-modal h2').textContent = "Chỉnh sửa bài viết";
+    document.querySelector('#add-news-form button[type="submit"]').textContent = "Cập nhật bài viết";
+
+    openModal('admin-news-modal');
+}
+
 async function submitNews(e) {
     if (e) e.preventDefault();
+    const id = document.getElementById('edit-news-id').value;
     const title = document.getElementById('news-title').value.trim();
     const type = document.getElementById('news-type').value;
     const content = document.getElementById('news-content').value.trim();
 
     if (!title) return;
 
+    const action = id ? 'updateNews' : 'addNews';
     const payload = {
-        action: 'addNews',
+        action,
+        id,
         title,
         type,
         content
@@ -951,11 +1039,13 @@ async function submitNews(e) {
     hideLoader();
 
     if (res && res.success) {
-        showToast("Đăng bài viết thành công!", "success");
+        showToast(id ? "Cập nhật bài viết thành công!" : "Đăng bài viết thành công!", "success");
         document.getElementById('add-news-form').reset();
         currentFileBase64 = null;
         document.getElementById('news-file-preview-container').classList.add('hidden');
         closeModal('admin-news-modal');
+        // Clear cache and reload
+        adminNewsCache = null;
         loadAdminTab('news');
     } else {
         showToast(res ? res.message : "Đã có lỗi xảy ra", "error");
@@ -987,20 +1077,20 @@ function renderNews(newsList) {
             const dateStr = new Date(n.time).toLocaleDateString('vi-VN');
             let contentHtml = '';
             if (n.type === 'Link' || n.type === 'PDF') {
-                contentHtml = `<a href="${n.content}" target="_blank" class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-top: 5px; display: inline-block;">Xem chi tiết <i class="fa-solid fa-chevron-right"></i></a>`;
+                contentHtml = `< a href = "${n.content}" target = "_blank" class="btn btn-outline" style = "padding: 5px 10px; font-size: 12px; margin-top: 5px; display: inline-block;" > Xem chi tiết < i class="fa-solid fa-chevron-right" ></i ></a > `;
             } else {
-                contentHtml = `<p style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">${n.content}</p>`;
+                contentHtml = `< p style = "font-size: 13px; color: var(--text-muted); margin-top: 5px;" > ${n.content}</p > `;
             }
             html += `
-                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1);">
+                        < div style = "background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1);" >
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <h4 style="color: var(--c-blue); font-size: 15px;">${n.title}</h4>
                         <span style="font-size: 11px; color: var(--text-muted); padding: 2px 5px; background: rgba(0,0,0,0.3); border-radius: 5px;">${n.type}</span>
                     </div>
                     <small style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; display: block;">${dateStr}</small>
                     ${contentHtml}
-                </div>
-            `;
+                </div >
+                        `;
         });
     }
     container.innerHTML = html;
@@ -1043,19 +1133,19 @@ function renderAdminUsers() {
     }
 
     let html = `
-        <div style="overflow-x:auto; width: 100%;">
-            <table style="width:100%; border-collapse: collapse; background:white; border-radius:15px; overflow:hidden; table-layout: auto;">
-                <thead>
-                    <tr style="background:#f1f5f9; text-align:left;">
-                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">HỌ TÊN</th>
-                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">LỚP</th>
-                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">ĐỐI TƯỢNG</th>
-                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">TÀI KHOẢN</th>
-                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted); text-align:center;">THAO TÁC</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
+                        < div style = "overflow-x:auto; width: 100%;" >
+                            <table style="width:100%; border-collapse: collapse; background:white; border-radius:15px; overflow:hidden; table-layout: auto;">
+                                <thead>
+                                    <tr style="background:#f1f5f9; text-align:left;">
+                                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">HỌ TÊN</th>
+                                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">LỚP</th>
+                                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">ĐỐI TƯỢNG</th>
+                                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted);">TÀI KHOẢN</th>
+                                        <th style="padding:12px 15px; font-size:12px; color:var(--text-muted); text-align:center;">THAO TÁC</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    `;
 
     filteredUsers.forEach(u => {
         let roleTag = u.role === 'teacher' ?
@@ -1063,29 +1153,29 @@ function renderAdminUsers() {
             `<span style="padding:4px 10px; background:#f0fdf4; color:#166534; border-radius:8px; font-size:11px; font-weight:700;">HỌC SINH</span>`;
 
         html += `
-            <tr style="border-bottom:1px solid #f1f5f9;">
-                <td style="padding:12px 15px; font-weight:600; color:var(--text-main); font-size:14px;">${u.name}</td>
-                <td style="padding:12px 15px;"><span style="padding:4px 10px; background:#e0f2fe; color:#0369a1; border-radius:8px; font-size:12px; font-weight:700;">${u.className}</span></td>
-                <td style="padding:12px 15px;">${roleTag}</td>
-                <td style="padding:12px 15px; color:var(--text-muted); font-size:13px;">${u.username}</td>
-                <td style="padding:12px 15px; text-align:center;">
-                    <div style="display:flex; gap:8px; justify-content:center;">
-                        <button class="btn-action-mini color-yellow" onclick="openChangePasswordModal('${u.username}')" title="Đổi mật khẩu">
-                            <i class="fa-solid fa-key"></i>
-                        </button>
-                        <button class="btn-action-mini color-blue" onclick="openAdminChatReply(null, '${u.username}')" title="Nhắn tin">
-                            <i class="fa-solid fa-comments"></i>
-                        </button>
-                        <button class="btn-action-mini color-red" onclick="deleteUserAdmin('${u.username}')" title="Xóa học sinh">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
+                                    <tr style="border-bottom:1px solid #f1f5f9;">
+                                        <td style="padding:12px 15px; font-weight:600; color:var(--text-main); font-size:14px;">${u.name}</td>
+                                        <td style="padding:12px 15px;"><span style="padding:4px 10px; background:#e0f2fe; color:#0369a1; border-radius:8px; font-size:12px; font-weight:700;">${u.className}</span></td>
+                                        <td style="padding:12px 15px;">${roleTag}</td>
+                                        <td style="padding:12px 15px; color:var(--text-muted); font-size:13px;">${u.username}</td>
+                                        <td style="padding:12px 15px; text-align:center;">
+                                            <div style="display:flex; gap:8px; justify-content:center;">
+                                                <button class="btn-action-mini color-yellow" onclick="openChangePasswordModal('${u.username}')" title="Đổi mật khẩu">
+                                                    <i class="fa-solid fa-key"></i>
+                                                </button>
+                                                <button class="btn-action-mini color-blue" onclick="openAdminChatReply(null, '${u.username}')" title="Nhắn tin">
+                                                    <i class="fa-solid fa-comments"></i>
+                                                </button>
+                                                <button class="btn-action-mini color-red" onclick="deleteUserAdmin('${u.username}')" title="Xóa học sinh">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    `;
     });
 
-    html += `</tbody></table></div>`;
+    html += `</tbody></table></div > `;
     listContainer.innerHTML = html;
 }
 
@@ -1148,7 +1238,7 @@ function exportUsersToExcel() {
 // --- Bulk User Management Functions ---
 function renderBulkUserManagement(container) {
     container.innerHTML = `
-        <div class="bulk-user-mgmt">
+                        < div class="bulk-user-mgmt" >
             <h3 class="section-title"><i class="fa-solid fa-file-import"></i> THÊM TÀI KHOẢN ĐĂNG KÝ HÀNG LOẠT</h3>
             
             <div class="section-card" style="background: #f8fafc; border: 1px dashed var(--primary); text-align: center; padding: 40px 20px;">
@@ -1184,8 +1274,8 @@ function renderBulkUserManagement(container) {
                     <li>Cột SĐT trong file mẫu (Cột F) sẽ được tự động đồng bộ vào hệ thống.</li>
                 </ul>
             </div>
-        </div>
-    `;
+        </div >
+                        `;
 }
 
 function downloadUserTemplate() {
@@ -1245,7 +1335,7 @@ async function uploadUserList(event) {
             hideLoader();
 
             if (res && res.success) {
-                statusDiv.innerHTML = `<i class="fa-solid fa-check-circle"></i> ${res.message}`;
+                statusDiv.innerHTML = `< i class="fa-solid fa-check-circle" ></i > ${res.message} `;
                 statusDiv.style.color = 'var(--c-green)';
                 showToast(res.message, "success");
             } else {
