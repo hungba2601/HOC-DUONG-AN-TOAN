@@ -11,6 +11,7 @@ let studentReportsCache = []; // Cache for chat history
 let currentAdminTab = 'reports'; // Global for admin navigation
 let isWebMode = false; // Toggle between Mobile and Web layout
 let adminUsersCache = []; // Store fetched users for filtering/sorting
+let adminUserSortActive = false; // Flag to keep track if sorting is requested
 
 // --- UI Utilities ---
 function showToast(message, type = 'success') {
@@ -122,8 +123,17 @@ async function login() {
 
     if (res && res.success) {
         showToast("Đăng nhập thành công!", "success");
-        currentUser = username;
+        currentUser = username.toLowerCase().trim();
         currentRole = role;
+
+        // Lưu thông tin đăng nhập để tự động điền và duy trì phiên
+        localStorage.setItem('saved_username', username);
+        localStorage.setItem('saved_password', password);
+        localStorage.setItem('saved_role', role);
+        localStorage.setItem('is_logged_in', 'true');
+
+        // Khởi tạo thông báo đẩy
+        initPushNotifications();
 
         if (role === 'student') {
             document.getElementById('student-name').textContent = username;
@@ -187,6 +197,9 @@ async function register() {
 function logout() {
     currentUser = null;
     currentRole = 'student';
+    // Xóa trạng thái đăng nhập nhưng giữ tài khoản/mật khẩu để điền sẵn
+    localStorage.removeItem('is_logged_in');
+
     // Reset view mode if needed
     if (isWebMode) toggleViewMode();
     switchScreen('login-screen');
@@ -345,11 +358,11 @@ function previewFile() {
 
             previewContainer.classList.remove('hidden');
             if (file.type.startsWith('image/')) {
-                previewContainer.innerHTML = `< img src = "${e.target.result}" > <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
+                previewContainer.innerHTML = `<img src="${e.target.result}"> <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
             } else if (file.type.startsWith('video/')) {
-                previewContainer.innerHTML = `< video src = "${e.target.result}" ></video > <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
+                previewContainer.innerHTML = `<video src="${e.target.result}"></video> <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
             } else {
-                previewContainer.innerHTML = `< i class="fa-solid fa-file" style = "font-size:24px; color:var(--primary); margin:13px;" ></i > <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
+                previewContainer.innerHTML = `<i class="fa-solid fa-file" style="font-size:24px; color:var(--primary); margin:13px;"></i> <i class="fa-solid fa-xmark remove-file" onclick="clearFilePreview()"></i>`;
             }
         };
         reader.readAsDataURL(file);
@@ -374,35 +387,32 @@ function clearFilePreview() {
 // --- SOS Features ---
 // --- SOS Features ---
 async function openSOSModal() {
-    // Mở modal ngay lập tức để người dùng thấy phản hồi
     const adminListContainer = document.getElementById('admin-list-sos');
-    adminListContainer.innerHTML = '<div style="text-align:center; padding:15px; font-size:12px; color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách Admin...</div>';
+    adminListContainer.innerHTML = '<div style="text-align:center; padding:15px; font-size:13px; color:#666;"><i class="fa-solid fa-circle-notch fa-spin"></i> Đang tải dữ liệu admin...</div>';
     openModal('sos-modal');
 
-    // Tải dữ liệu admin trong nền
     try {
         const res = await apiCall({ action: 'getAdmins' });
         if (res && res.success) {
-            let adminHtml = '';
+            let html = '';
             res.admins.forEach(admin => {
-                adminHtml += `
-                    < div style = "display:flex; justify-content:space-between; align-items:center; padding: 12px; border-bottom: 1px solid #eee;" >
-                        <div>
-                            <div style="font-weight:600; font-size:14px; color:black;">${admin.name}</div>
-                            <div style="color:var(--text-muted); font-size:12px;">SĐT: ${admin.phone}</div>
-                        </div>
-                        <a href="tel:${admin.phone}" class="btn" style="width:auto; padding:5px 15px; font-size:12px; background:var(--c-green); color:white; border-radius:30px; text-decoration:none;">
-                            <i class="fa-solid fa-phone"></i> Gọi ngay
-                        </a>
-                    </div >
-                    `;
+                html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #f1f5f9;">
+                    <div style="flex:1;">
+                        <div style="font-weight:600; font-size:14px; color:#1e293b;">${admin.name}</div>
+                        <div style="color:#64748b; font-size:12px; margin-top:2px;">SĐT: ${admin.phone}</div>
+                    </div>
+                    <a href="tel:${admin.phone}" style="background:#10b981; color:white; padding:8px 16px; border-radius:20px; text-decoration:none; font-size:12px; font-weight:600; display:flex; align-items:center; gap:5px; transition:all 0.2s;">
+                        <i class="fa-solid fa-phone"></i> Gọi ngay
+                    </a>
+                </div>`;
             });
-            adminListContainer.innerHTML = adminHtml || '<p style="font-size:12px; color:red; padding:10px;">Chưa có thông tin Admin liên hệ.</p>';
+            adminListContainer.innerHTML = html || '<div style="padding:15px; text-align:center; color:#ef4444; font-size:13px;">Chưa có thông tin liên hệ.</div>';
         } else {
-            adminListContainer.innerHTML = '<p style="font-size:12px; color:red; padding:10px;">Không thể tải danh sách liên hệ.</p>';
+            adminListContainer.innerHTML = '<div style="padding:15px; text-align:center; color:#ef4444; font-size:13px;">Lỗi: Không thể tải danh sách.</div>';
         }
     } catch (err) {
-        adminListContainer.innerHTML = '<p style="font-size:12px; color:red; padding:10px;">Lỗi kết nối máy chủ.</p>';
+        adminListContainer.innerHTML = '<div style="padding:15px; text-align:center; color:#ef4444; font-size:13px;">Lỗi kết nối máy chủ.</div>';
     }
 }
 
@@ -439,9 +449,9 @@ function openChatModal() {
 function loadChatHistory() {
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = `
-                    < div class="chat-message admin-msg" >
+                    <div class="chat-message admin-msg">
                         <div class="msg-bubble">Chào bạn, bạn muốn tâm sự hay hỏi đáp gì không? Thông tin của bạn được bảo mật.</div>
-        </div >
+                    </div>
                     `;
 
     // Filter and display chat history
@@ -449,15 +459,15 @@ function loadChatHistory() {
     // Result is reversed (newest first), we want oldest first for chat flow
     [...chats].reverse().forEach(c => {
         chatBox.innerHTML += `
-                    < div class="chat-message user-msg" >
+                    <div class="chat-message user-msg">
                         <div class="msg-bubble">${c.content}</div>
-            </div >
+                    </div>
                     `;
         if (c.details && c.status === 'Đã xử lý') {
             chatBox.innerHTML += `
-                    < div class="chat-message admin-msg" >
+                    <div class="chat-message admin-msg">
                         <div class="msg-bubble">${c.details}</div>
-                </div >
+                    </div>
                     `;
         }
     });
@@ -472,9 +482,9 @@ function sendChat() {
 
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML += `
-                    < div class="chat-message user-msg" >
+                    <div class="chat-message user-msg">
                         <div class="msg-bubble">${msg}</div>
-        </div >
+                    </div>
                     `;
     input.value = '';
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -496,9 +506,9 @@ function sendChat() {
     // Auto reply
     setTimeout(() => {
         chatBox.innerHTML += `
-                    < div class="chat-message admin-msg" >
+                    <div class="chat-message admin-msg">
                         <div class="msg-bubble">Quản trị viên đã nhận được tin nhắn. Phản hồi sẽ hiển thị ở bảng "Báo cáo gần đây".</div>
-            </div >
+                    </div>
                     `;
         chatBox.scrollTop = chatBox.scrollHeight;
     }, 1000);
@@ -646,16 +656,17 @@ async function loadAdminTab(tab, btn = null) {
         const res = await apiCall({ action: 'getUsers' });
         if (res && res.success) {
             adminUsersCache = res.users;
+            adminUserSortActive = false; // Reset trạng thái sắp xếp khi mới vào tab
 
             // Lấy danh sách lớp duy nhất để tạo filter
             const classes = [...new Set(adminUsersCache.map(u => u.className).filter(c => c && c !== "---"))].sort();
             let classOptions = '<option value="all">Tất cả các lớp</option>';
             classes.forEach(c => {
-                classOptions += `< option value = "${c}" > ${c}</option > `;
+                classOptions += `<option value="${c}">${c}</option>`;
             });
 
             let html = `
-                        < div id = "user-mgmt-header" style = "grid-column: 1 / -1; display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;" >
+                        <div id="user-mgmt-header" style="grid-column: 1 / -1; display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
                         <h3 class="section-title" style="margin:0;"><i class="fa-solid fa-users-gear"></i> QUẢN LÝ NGƯỜI DÙNG</h3>
                         <div class="user-management-controls section-card" style="margin:0; display:flex; gap:15px; align-items:center; background:#f0f9ff; border:1px solid #bae6fd; padding: 10px 20px; width: auto; border-radius: 12px; flex-wrap: wrap;">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -682,7 +693,7 @@ async function loadAdminTab(tab, btn = null) {
                                 <i class="fa-solid fa-file-excel"></i> Xuất Excel
                             </button>
                         </div>
-                    </div >
+                    </div>
                         <div id="admin-users-list-container" style="grid-column: 1 / -1; width: 100%;"></div>
                     `;
             area.innerHTML = html;
@@ -824,16 +835,16 @@ function openAdminChatReply(id, username) {
         userChats.forEach(c => {
             // Tin nhắn của học sinh
             chatHistoryContainer.innerHTML += `
-                        < div class="chat-message user-msg" >
+                        <div class="chat-message user-msg">
                             <div class="msg-bubble">${c.content}</div>
-                </div >
+                </div>
                         `;
             // Phản hồi của Admin (nếu có)
             if (c.details) {
                 chatHistoryContainer.innerHTML += `
-                        < div class="chat-message admin-msg" >
+                        <div class="chat-message admin-msg">
                             <div class="msg-bubble" style="background: var(--primary); color:white;">${c.details}</div>
-                    </div >
+                    </div>
                         `;
             }
         });
@@ -1077,19 +1088,19 @@ function renderNews(newsList) {
             const dateStr = new Date(n.time).toLocaleDateString('vi-VN');
             let contentHtml = '';
             if (n.type === 'Link' || n.type === 'PDF') {
-                contentHtml = `< a href = "${n.content}" target = "_blank" class="btn btn-outline" style = "padding: 5px 10px; font-size: 12px; margin-top: 5px; display: inline-block;" > Xem chi tiết < i class="fa-solid fa-chevron-right" ></i ></a > `;
+                contentHtml = `<a href="${n.content}" target="_blank" class="btn btn-outline" style="padding: 5px 10px; font-size: 12px; margin-top: 5px; display: inline-block;">Xem chi tiết <i class="fa-solid fa-chevron-right"></i></a>`;
             } else {
-                contentHtml = `< p style = "font-size: 13px; color: var(--text-muted); margin-top: 5px;" > ${n.content}</p > `;
+                contentHtml = `<p style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">${n.content}</p>`;
             }
             html += `
-                        < div style = "background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1);" >
+                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.1);">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <h4 style="color: var(--c-blue); font-size: 15px;">${n.title}</h4>
                         <span style="font-size: 11px; color: var(--text-muted); padding: 2px 5px; background: rgba(0,0,0,0.3); border-radius: 5px;">${n.type}</span>
                     </div>
                     <small style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; display: block;">${dateStr}</small>
                     ${contentHtml}
-                </div >
+                </div>
                         `;
         });
     }
@@ -1117,14 +1128,40 @@ function renderAdminUsers() {
 
     let filteredUsers = [...adminUsersCache];
 
-    // Lọc theo đối tượng
+    // 1. Lọc theo đối tượng
     if (roleFilter !== 'all') {
         filteredUsers = filteredUsers.filter(u => u.role === roleFilter);
     }
 
-    // Lọc theo lớp
+    // 2. Lọc theo lớp
     if (classFilter !== 'all') {
         filteredUsers = filteredUsers.filter(u => u.className === classFilter);
+    }
+
+    // 3. Sắp xếp nếu có yêu cầu (Ưu tiên Tên -> Họ -> Lót)
+    if (adminUserSortActive) {
+        filteredUsers.sort((a, b) => {
+            const nameA = (a.name || "").trim();
+            const nameB = (b.name || "").trim();
+
+            const partsA = nameA.split(/\s+/);
+            const partsB = nameB.split(/\s+/);
+
+            // Lấy Tên (từ cuối cùng)
+            const tenA = partsA[partsA.length - 1];
+            const tenB = partsB[partsB.length - 1];
+            const cmpTen = tenA.localeCompare(tenB, 'vi', { sensitivity: 'base' });
+            if (cmpTen !== 0) return cmpTen;
+
+            // Nếu trùng tên, xét đến Họ (từ đầu tiên)
+            const hoA = partsA.length > 1 ? partsA[0] : "";
+            const hoB = partsB.length > 1 ? partsB[0] : "";
+            const cmpHo = hoA.localeCompare(hoB, 'vi', { sensitivity: 'base' });
+            if (cmpHo !== 0) return cmpHo;
+
+            // Cuối cùng xét đến Chữ lót
+            return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+        });
     }
 
     if (filteredUsers.length === 0) {
@@ -1133,7 +1170,7 @@ function renderAdminUsers() {
     }
 
     let html = `
-                        < div style = "overflow-x:auto; width: 100%;" >
+                        <div style="overflow-x:auto; width: 100%;">
                             <table style="width:100%; border-collapse: collapse; background:white; border-radius:15px; overflow:hidden; table-layout: auto;">
                                 <thead>
                                     <tr style="background:#f1f5f9; text-align:left;">
@@ -1175,17 +1212,13 @@ function renderAdminUsers() {
                                     `;
     });
 
-    html += `</tbody></table></div > `;
+    html += `</tbody></table></div>`;
     listContainer.innerHTML = html;
 }
 
 function sortAdminUsers() {
-    adminUsersCache.sort((a, b) => {
-        const nameA = (a.name || "").toLowerCase();
-        const nameB = (b.name || "").toLowerCase();
-        return nameA.localeCompare(nameB, 'vi');
-    });
-    showToast("Đã sắp xếp Theo tên A-Z", "success");
+    adminUserSortActive = true;
+    showToast("Đã sắp xếp danh sách đang hiển thị (A-Z)", "success");
     renderAdminUsers();
 }
 
@@ -1196,6 +1229,25 @@ function exportUsersToExcel() {
     let list = [...adminUsersCache];
     if (roleFilter !== 'all') list = list.filter(u => u.role === roleFilter);
     if (classFilter !== 'all') list = list.filter(u => u.className === classFilter);
+
+    // Apply exact same sorting as on-screen rendering
+    if (adminUserSortActive) {
+        list.sort((a, b) => {
+            const nameA = (a.name || "").trim();
+            const nameB = (b.name || "").trim();
+            const partsA = nameA.split(/\s+/);
+            const partsB = nameB.split(/\s+/);
+            const tenA = partsA[partsA.length - 1];
+            const tenB = partsB[partsB.length - 1];
+            const cmpTen = tenA.localeCompare(tenB, 'vi', { sensitivity: 'base' });
+            if (cmpTen !== 0) return cmpTen;
+            const hoA = partsA.length > 1 ? partsA[0] : "";
+            const hoB = partsB.length > 1 ? partsB[0] : "";
+            const cmpHo = hoA.localeCompare(hoB, 'vi', { sensitivity: 'base' });
+            if (cmpHo !== 0) return cmpHo;
+            return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+        });
+    }
 
     if (list.length === 0) {
         showToast("Không có dữ liệu để xuất!", "error");
@@ -1238,7 +1290,7 @@ function exportUsersToExcel() {
 // --- Bulk User Management Functions ---
 function renderBulkUserManagement(container) {
     container.innerHTML = `
-                        < div class="bulk-user-mgmt" >
+                        <div class="bulk-user-mgmt">
             <h3 class="section-title"><i class="fa-solid fa-file-import"></i> THÊM TÀI KHOẢN ĐĂNG KÝ HÀNG LOẠT</h3>
             
             <div class="section-card" style="background: #f8fafc; border: 1px dashed var(--primary); text-align: center; padding: 40px 20px;">
@@ -1274,7 +1326,7 @@ function renderBulkUserManagement(container) {
                     <li>Cột SĐT trong file mẫu (Cột F) sẽ được tự động đồng bộ vào hệ thống.</li>
                 </ul>
             </div>
-        </div >
+        </div>
                         `;
 }
 
@@ -1335,7 +1387,7 @@ async function uploadUserList(event) {
             hideLoader();
 
             if (res && res.success) {
-                statusDiv.innerHTML = `< i class="fa-solid fa-check-circle" ></i > ${res.message} `;
+                statusDiv.innerHTML = `<i class="fa-solid fa-check-circle"></i> ${res.message}`;
                 statusDiv.style.color = 'var(--c-green)';
                 showToast(res.message, "success");
             } else {
@@ -1351,3 +1403,138 @@ async function uploadUserList(event) {
     };
     reader.readAsArrayBuffer(file);
 }
+
+// --- Push Notification Subscription Logic ---
+// Thay VAPID_PUBLIC_KEY bằng key thật từ Firebase Console (Cloud Messaging -> Web Configuration)
+const VAPID_PUBLIC_KEY = 'BJr-M1iYXdROpF2_4uS8HoR4LFPnx8Aw0l8GJaGIz250NjcrdNMzAvSZhk3ug0tOi2XsdKMA9833TWiZCSGGvWk';
+
+async function initPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn('Trình duyệt không hỗ trợ Push Notifications.');
+        return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+        // Nếu chưa đăng ký, tiến hành đăng ký mới
+        subscription = await subscribeUser(registration);
+    }
+
+    if (subscription) {
+        // Gửi thông tin đăng ký lên Google Sheets (Code.gs)
+        await apiCall({
+            action: 'subscribePush',
+            subscription: JSON.stringify(subscription),
+            username: currentUser
+        });
+    }
+}
+
+async function subscribeUser(registration) {
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.warn('Người dùng từ chối nhận thông báo.');
+            return null;
+        }
+
+        const subscribeOptions = {
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        };
+
+        return await registration.pushManager.subscribe(subscribeOptions);
+    } catch (error) {
+        console.error('Lỗi khi đăng ký Push:', error);
+        return null;
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    if (base64String === 'YOUR_VAPID_PUBLIC_KEY_HERE') return null;
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+// --- Own Password Management for Teacher/Admin ---
+function openOwnPasswordModal() {
+    document.getElementById('own-new-pass').value = '';
+    document.getElementById('own-confirm-pass').value = '';
+    openModal('own-password-modal');
+}
+
+async function submitOwnPasswordChange() {
+    const newPass = document.getElementById('own-new-pass').value.trim();
+    const confirmPass = document.getElementById('own-confirm-pass').value.trim();
+
+    if (!newPass) {
+        showToast("Vui lòng nhập mật khẩu mới!", "error");
+        return;
+    }
+
+    if (newPass.length < 4) {
+        showToast("Mật khẩu mới phải có ít nhất 4 ký tự!", "error");
+        return;
+    }
+
+    if (newPass !== confirmPass) {
+        showToast("Xác nhận mật khẩu không khớp!", "error");
+        return;
+    }
+
+    customConfirm("Bạn có chắc chắn muốn đổi sang mật khẩu mới này không?", async () => {
+        showLoader();
+        try {
+            const res = await apiCall({
+                action: 'changePassword',
+                username: currentUser,
+                newPassword: newPass
+            });
+            hideLoader();
+
+            if (res && res.success) {
+                showToast("Đã đổi mật khẩu thành công! Hãy ghi nhớ mật khẩu mới.", "success");
+                closeModal('own-password-modal');
+            } else {
+                showToast(res && res.message ? res.message : "Lỗi khi đổi mật khẩu!", "error");
+            }
+        } catch (err) {
+            hideLoader();
+            showToast("Lỗi kết nối máy chủ!", "error");
+        }
+    });
+}
+// --- App Initialization ---
+function initApp() {
+    const savedUsername = localStorage.getItem('saved_username');
+    const savedPassword = localStorage.getItem('saved_password');
+    const savedRole = localStorage.getItem('saved_role');
+    const isLoggedIn = localStorage.getItem('is_logged_in');
+
+    // Điền sẵn thông tin nếu có
+    if (savedUsername) document.getElementById('username').value = savedUsername;
+    if (savedPassword) document.getElementById('password').value = savedPassword;
+    if (savedRole) {
+        const roleRadio = document.querySelector(`input[name="role"][value="${savedRole}"]`);
+        if (roleRadio) {
+            roleRadio.checked = true;
+            toggleRegisterBtn();
+        }
+    }
+
+    // Tự động đăng nhập nếu trạng thái là đang đăng nhập
+    if (isLoggedIn === 'true' && savedUsername && savedPassword && savedRole) {
+        login();
+    }
+}
+
+// Chạy khởi tạo khi trang tải xong
+document.addEventListener('DOMContentLoaded', initApp);
